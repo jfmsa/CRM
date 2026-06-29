@@ -252,7 +252,7 @@ let S = {
   },
   token:null,
   records:[], selected:null, form:{},
-  search:'', statusFilter:'all',
+  search:'', statusFilter:'all', monthFilter:'all', bevFilter:'all', xevFilter:'all',
   openGroups:{Identificação:true},
   loading:false, error:'', confirmDelete:false,
 };
@@ -336,6 +336,9 @@ function recordToForm(r){
 function filtered(){
   return S.records.filter(r => {
     if(S.statusFilter!=='all' && r.status!==S.statusFilter) return false;
+    if(S.monthFilter!=='all' && (r.mes1||'')!==S.monthFilter) return false;
+    if(S.bevFilter!=='all' && (S.bevFilter==='1' ? !r.bev : !!r.bev)) return false;
+    if(S.xevFilter!=='all' && (S.xevFilter==='1' ? !r.xev : !!r.xev)) return false;
     if(S.search){
       const s = S.search.toLowerCase();
       return ['id_cliente','model','version','mat','obs','biz','enc'].some(k =>
@@ -344,6 +347,14 @@ function filtered(){
     }
     return true;
   });
+}
+
+function availableMonths(){
+  let recs = S.records;
+  if(S.statusFilter!=='all') recs = recs.filter(r=>r.status===S.statusFilter);
+  const months = [...new Set(recs.map(r=>r.mes1).filter(Boolean))];
+  months.sort((a,b) => b.localeCompare(a));
+  return months;
 }
 
 function statusCounts(){
@@ -379,7 +390,7 @@ function renderList(){
   return `
     <div class="hdr">
       <div class="hdr-title">Baviera Control</div>
-      <span style="font-size:12px;opacity:.6">${S.records.length}</span>
+      <span style="font-size:12px;opacity:.6">${f.length}/${S.records.length}</span>
       <button class="hdr-btn" data-action="refresh" ${S.loading?'disabled':''} style="padding:6px 10px">${S.loading?'...':'↻'}</button>
       <button class="hdr-btn" data-action="logout" style="font-size:12px">Sair</button>
     </div>
@@ -390,6 +401,14 @@ function renderList(){
       <div class="tabs">
         <button class="tab ${S.statusFilter==='all'?'active':''}" data-action="filter" data-status="all">Todos<span class="count"> ${S.records.length}</span></button>
         ${STATUSES.map(s=>`<button class="tab ${S.statusFilter===s?'active':''}" data-action="filter" data-status="${s}">${s}<span class="count"> ${c[s]||0}</span></button>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;padding:0 16px 8px;flex-wrap:wrap;align-items:center">
+        <div class="tabs" style="padding:0;flex:1;min-width:0">
+          <button class="tab ${S.monthFilter==='all'?'active':''}" data-action="filter-month" data-month="all" style="font-size:11px;padding:5px 10px">Meses</button>
+          ${availableMonths().map(m=>`<button class="tab ${S.monthFilter===m?'active':''}" data-action="filter-month" data-month="${esc(m)}" style="font-size:11px;padding:5px 10px">${esc(m)}</button>`).join('')}
+        </div>
+        <button class="tab ${S.bevFilter==='1'?'active':''}" data-action="filter-bev" style="font-size:11px;padding:5px 10px;flex-shrink:0;${S.bevFilter==='1'?'background:#dbeafe;color:#1e40af':''}">BEV</button>
+        <button class="tab ${S.xevFilter==='1'?'active':''}" data-action="filter-xev" style="font-size:11px;padding:5px 10px;flex-shrink:0;${S.xevFilter==='1'?'background:#dbeafe;color:#1e40af':''}">xEV</button>
       </div>
       ${S.error?`<div class="error" style="margin:0 16px 8px">${esc(S.error)}</div>`:''}
       <div class="cards">
@@ -405,6 +424,8 @@ function renderList(){
                 <span>${esc(r.model||'')} · ${esc(r.version||'')}</span>
                 ${r.mat?`<span class="mat-tag">${esc(r.mat)}</span>`:''}
                 ${r.fin?`<span>${esc(r.fin)}</span>`:''}
+                ${r.bev?`<span style="font-size:10px;font-weight:800;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px">BEV</span>`:''}
+                ${r.xev&&!r.bev?`<span style="font-size:10px;font-weight:800;background:#f0fdf4;color:#166534;padding:1px 6px;border-radius:4px">xEV</span>`:''}
               </div>
               ${r.obs?`<div class="card-obs">${esc(r.obs)}</div>`:''}
             </div>
@@ -555,7 +576,10 @@ function bindEvents(){
       }
       case 'logout': setState({token:null,records:[],screen:'login',error:''}); break;
       case 'refresh': loadRecords(); break;
-      case 'filter': setState({statusFilter:el.dataset.status}); break;
+      case 'filter': setState({statusFilter:el.dataset.status, monthFilter:'all', bevFilter:'all', xevFilter:'all'}); break;
+      case 'filter-month': setState({monthFilter: S.monthFilter===el.dataset.month ? 'all' : el.dataset.month}); break;
+      case 'filter-bev': setState({bevFilter: S.bevFilter==='1' ? 'all' : '1'}); break;
+      case 'filter-xev': setState({xevFilter: S.xevFilter==='1' ? 'all' : '1'}); break;
       case 'open-detail':{
         const id = parseInt(el.dataset.id);
         const r = S.records.find(x=>x.id===id);
