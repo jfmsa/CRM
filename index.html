@@ -245,7 +245,12 @@ const ALL_FIELDS = FIELD_GROUPS.flatMap(g => g.fields);
 
 // ── State ──────────────────────────────────────────────
 let S = {
-  screen:'loading', config:null, token:null,
+  screen:'loading',
+  config:{
+    url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',
+    key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'
+  },
+  token:null,
   records:[], selected:null, form:{},
   search:'', statusFilter:'all',
   openGroups:{Identificação:true},
@@ -350,24 +355,6 @@ function statusCounts(){
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Renderers ──────────────────────────────────────────
-function renderSetup(){
-  return `
-    <div class="content"><div class="center-screen"><div class="center-box">
-      <h1>Baviera Control</h1>
-      <p>Configura a ligação à base de dados Supabase do projeto.</p>
-      ${S.error?`<div class="error">${esc(S.error)}</div>`:''}
-      <div class="field">
-        <label class="field-label">URL do Projeto</label>
-        <input class="field-input" id="f-url" placeholder="https://abc123.supabase.co" value="${esc(S._sUrl||'')}">
-      </div>
-      <div class="field">
-        <label class="field-label">Anon Key</label>
-        <input class="field-input" id="f-key" placeholder="eyJhbGciOiJIUzI1NiIs..." value="${esc(S._sKey||'')}">
-      </div>
-      <button class="btn btn-primary btn-block" data-action="save-setup">Guardar Configuração</button>
-    </div></div></div>`;
-}
-
 function renderLogin(){
   return `
     <div class="content"><div class="center-screen"><div class="center-box">
@@ -383,7 +370,6 @@ function renderLogin(){
         <input class="field-input" type="password" id="f-pw" placeholder="••••••••">
       </div>
       <button class="btn btn-primary btn-block" data-action="login" ${S.loading?'disabled':''}>${S.loading?'A entrar...':'Entrar'}</button>
-      <button class="btn btn-ghost btn-block" style="margin-top:10px" data-action="reset-config">Alterar configuração</button>
     </div></div></div>`;
 }
 
@@ -537,7 +523,7 @@ function renderEdit(){
 function render(){
   const app = document.getElementById('app');
   const screens = {loading:'<div class="content"><div class="center-screen"><p style="color:var(--text3)">A carregar...</p></div></div>',
-    setup:renderSetup, login:renderLogin, list:renderList, detail:renderDetail, edit:renderEdit};
+    login:renderLogin, list:renderList, detail:renderDetail, edit:renderEdit};
   const fn = screens[S.screen];
   app.innerHTML = typeof fn==='function' ? fn() : fn;
   bindEvents();
@@ -554,15 +540,6 @@ function bindEvents(){
     const action = el.dataset.action;
 
     switch(action){
-      case 'save-setup':{
-        const url = document.getElementById('f-url')?.value?.trim()?.replace(/\/$/,'');
-        const key = document.getElementById('f-key')?.value?.trim();
-        if(!url||!key){setState({error:'Preenche ambos os campos.'});return;}
-        const config = {url, key};
-        localStorage.setItem('baviera_config', JSON.stringify(config));
-        setState({config, screen:'login', error:''});
-        break;
-      }
       case 'login':{
         const email = document.getElementById('f-email')?.value?.trim();
         const pw = document.getElementById('f-pw')?.value;
@@ -577,7 +554,6 @@ function bindEvents(){
         break;
       }
       case 'logout': setState({token:null,records:[],screen:'login',error:''}); break;
-      case 'reset-config': localStorage.removeItem('baviera_config'); setState({config:null,screen:'setup',error:''}); break;
       case 'refresh': loadRecords(); break;
       case 'filter': setState({statusFilter:el.dataset.status}); break;
       case 'open-detail':{
@@ -644,15 +620,7 @@ function collectFormData(){
 
 // ── Init ───────────────────────────────────────────────
 (function init(){
-  const raw = localStorage.getItem('baviera_config');
-  if(raw){
-    try{
-      S.config = JSON.parse(raw);
-      S.screen = 'login';
-    }catch{ S.screen = 'setup'; }
-  } else {
-    S.screen = 'setup';
-  }
+  S.screen = 'login';
   render();
 })();
 </script>
