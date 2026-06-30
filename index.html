@@ -74,6 +74,25 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .pill2.clear{color:var(--red);border-color:var(--red)}
 .flabel{font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.8px}
 
+/* Filter Panel */
+.fpanel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);margin:8px 16px 0;padding:16px}
+.fpanel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.fpanel-title{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
+.fpanel-clear{font-size:12px;color:var(--orange);font-weight:600;cursor:pointer}
+.fpanel-section{margin-bottom:14px}
+.fpanel-section:last-child{margin-bottom:0}
+.fpanel-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.fpanel-years{display:flex;gap:6px;flex-wrap:wrap}
+.fpanel-year{padding:7px 14px;border-radius:var(--r);border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text2);background:var(--surface);cursor:pointer}
+.fpanel-year.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.fpanel-months{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fpanel-month{padding:9px 8px;border-radius:var(--r);border:1.5px solid var(--border);font-size:13px;font-weight:500;color:var(--text2);background:var(--surface);text-align:center;cursor:pointer}
+.fpanel-month.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.fpanel-month.disabled{opacity:.3;pointer-events:none}
+.fpanel-toggles{display:flex;gap:8px}
+.fpanel-toggle{flex:1;padding:9px;border-radius:var(--r);border:1.5px solid var(--border);font-size:13px;font-weight:700;color:var(--text3);background:var(--surface);text-align:center;cursor:pointer}
+.fpanel-toggle.active{background:var(--orange-bg);color:var(--orange);border-color:var(--orange)}
+
 .cards{padding:6px 16px;display:flex;flex-direction:column;gap:6px}
 .card{background:var(--surface);border-radius:var(--r2);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:border-color .12s}
 .card:active{border-color:var(--border2)}
@@ -172,7 +191,7 @@ let S={
   config:{url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'},
   token:null,records:[],selected:null,form:{},
   search:'',statusFilter:'all',monthFilter:'all',bevFilter:'all',xevFilter:'all',
-  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:false,filtersOpen:false
+  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:false,filtersOpen:false,filterYear:null
 };
 function setState(u){Object.assign(S,u);render()}
 
@@ -187,6 +206,9 @@ function emptyForm(){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=fd.t==='toggle'?0
 function recordToForm(r){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=r[fd.k]??(fd.t==='toggle'?0:''));return f}
 function filtered(){return S.records.filter(r=>{if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;if(S.monthFilter!=='all'&&(r.mes1||'')!==S.monthFilter)return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
 function availableMonths(){let recs=S.records;if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>r.mes1).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
+function availableYears(){const ms=availableMonths();const yrs=[...new Set(ms.map(m=>m.split('/')[0]))];yrs.sort((a,b)=>b-a);return yrs}
+function monthsForYear(y){const ms=availableMonths();return ms.filter(m=>m.startsWith(y+'/'))}
+const MONTH_NAMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function statusCounts(){const c={};S.records.forEach(r=>c[r.status]=(c[r.status]||0)+1);return c}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
@@ -239,15 +261,46 @@ function renderList(){
     <div class="search-wrap"><input class="search-input" id="f-search" placeholder="Pesquisar cliente, modelo, matrícula..." value="${esc(S.search)}"></div>
     <div style="padding:10px 16px 0;display:flex;gap:8px;align-items:center">
       <button class="pill2 ${S.filtersOpen?'active':''}" data-action="toggle-filters" style="display:flex;align-items:center;gap:4px">☰ Filtros${af?` (${af})`:''}</button>
-      ${af?`<button class="pill2 clear" data-action="clear-filters">✕ Limpar</button>`:''}
+      ${S.monthFilter!=='all'?`<span style="font-size:12px;font-weight:600;color:var(--orange)">${S.monthFilter}</span>`:''}
+      ${S.bevFilter==='1'?`<span style="font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-bg);padding:2px 7px;border-radius:6px">BEV</span>`:''}
+      ${S.xevFilter==='1'?`<span style="font-size:11px;font-weight:700;color:var(--green);background:var(--green-bg);padding:2px 7px;border-radius:6px">xEV</span>`:''}
     </div>
-    ${S.filtersOpen?`<div class="filters2" style="padding-top:8px">
-      <span class="flabel">Mês</span>
-      ${months.map(m=>`<button class="pill2 ${S.monthFilter===m?'active':''}" data-action="filter-month" data-month="${esc(m)}">${esc(m)}</button>`).join('')}
-      <span class="flabel" style="margin-left:4px">Tipo</span>
-      <button class="pill2 ${S.bevFilter==='1'?'active':''}" data-action="filter-bev">BEV</button>
-      <button class="pill2 ${S.xevFilter==='1'?'active':''}" data-action="filter-xev">xEV</button>
-    </div>`:''}
+    ${S.filtersOpen?(()=>{
+      const years=availableYears();
+      const selYear=S.filterYear||years[0]||'2026';
+      const ym=monthsForYear(selYear);
+      const allMonthKeys=MONTH_NAMES.map((_,i)=>`${selYear}/${String(i+1).padStart(2,'0')}`);
+      return`<div class="fpanel">
+        <div class="fpanel-header">
+          <div class="fpanel-title">⏱ Período</div>
+          ${af?`<div class="fpanel-clear" data-action="clear-filters">Limpar</div>`:''}
+        </div>
+        <div class="fpanel-section">
+          <div class="fpanel-label">Anos</div>
+          <div class="fpanel-years">
+            ${years.map(y=>`<button class="fpanel-year ${selYear===y?'active':''}" data-action="set-year" data-year="${y}">${y}</button>`).join('')}
+          </div>
+        </div>
+        <div class="fpanel-section">
+          <div class="fpanel-label">Meses · ${selYear}</div>
+          <div class="fpanel-months">
+            ${MONTH_NAMES.map((name,i)=>{
+              const key=`${selYear}/${String(i+1).padStart(2,'0')}`;
+              const has=ym.includes(key);
+              const active=S.monthFilter===key;
+              return`<button class="fpanel-month ${active?'active':''} ${!has?'disabled':''}" data-action="filter-month" data-month="${key}">${name}</button>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="fpanel-section">
+          <div class="fpanel-label">Tipo</div>
+          <div class="fpanel-toggles">
+            <button class="fpanel-toggle ${S.bevFilter==='1'?'active':''}" data-action="filter-bev">BEV</button>
+            <button class="fpanel-toggle ${S.xevFilter==='1'?'active':''}" data-action="filter-xev">xEV</button>
+          </div>
+        </div>
+      </div>`;
+    })():''}
     ${S.error?`<div class="error" style="margin:8px 16px">${esc(S.error)}</div>`:''}
     <div class="cards">
       ${f.length===0?'<div class="empty">Nenhum registo encontrado.</div>':f.map(r=>`
@@ -369,7 +422,8 @@ function bindEvents(){
       case'filter-bev':setState({bevFilter:S.bevFilter==='1'?'all':'1'});break;
       case'filter-xev':setState({xevFilter:S.xevFilter==='1'?'all':'1'});break;
       case'clear-filters':setState({monthFilter:'all',bevFilter:'all',xevFilter:'all'});break;
-      case'toggle-filters':setState({filtersOpen:!S.filtersOpen});break;
+      case'toggle-filters':{const yrs=availableYears();setState({filtersOpen:!S.filtersOpen,filterYear:S.filterYear||yrs[0]||'2026'});break}
+      case'set-year':setState({filterYear:el.dataset.year});break;
       case'open-detail':{const id=parseInt(el.dataset.id),r=S.records.find(x=>x.id===id);if(r)setState({selected:r,screen:'detail',confirmDelete:false,openGroups:{Identificação:true}});break}
       case'back-to-list':setState({screen:'list',selected:null});break;
       case'open-edit':setState({form:recordToForm(S.selected||{}),screen:'edit',error:'',openGroups:{Identificação:true}});break;
