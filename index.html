@@ -119,18 +119,18 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .fab{position:fixed;bottom:28px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--orange);color:#fff;font-size:24px;line-height:48px;text-align:center;box-shadow:0 4px 16px rgba(232,89,12,.35);z-index:9999}
 .fab:active{background:var(--orange2)}
 
-/* Sidebar - permanent panel */
-.sidebar-overlay{display:none}
+/* Layout */
 .app-layout{display:flex;height:100%;overflow:hidden}
-.sidebar{position:relative;top:auto;left:auto;bottom:auto;width:260px;min-width:260px;background:#1a1a2e;color:#fff;display:flex;flex-direction:column;transform:none;transition:margin .25s ease;z-index:10}
-.sidebar.closed{margin-left:-260px}
-.sidebar-header{padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar{width:260px;min-width:260px;background:#1a1a2e;color:#fff;display:flex;flex-direction:column;transition:all .25s ease;overflow:hidden}
+.sidebar.closed{width:0;min-width:0}
+.sidebar-inner{width:260px;min-width:260px;display:flex;flex-direction:column;height:100%}
 .main-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.m-overlay{display:none}
 @media(max-width:700px){
-  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:101;padding-top:var(--safe-t)}
-  .sidebar.closed{transform:translateX(-100%);margin-left:0}
-  .sidebar:not(.closed)~.sidebar-m-overlay{display:block}
-  .app-layout{position:relative}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:101;width:260px;min-width:260px}
+  .sidebar.closed{transform:translateX(-100%);width:260px;min-width:260px}
+  .m-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:none}
+  .m-overlay.show{display:block}
 }
 .sidebar-header{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
 .sidebar-logo{display:flex;align-items:center;gap:10px}
@@ -166,6 +166,10 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .toggle-btn.on{border-color:var(--orange);background:var(--orange-bg);color:var(--orange)}
 
 .empty{text-align:center;padding:48px 24px;color:var(--text3);font-size:13px}
+.month-group{padding:14px 16px 6px;display:flex;align-items:center;gap:8px}
+.month-group-label{font-size:13px;font-weight:800;color:var(--text);letter-spacing:-.2px}
+.month-group-count{font-size:11px;font-weight:600;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:var(--rp)}
+.month-group-line{flex:1;height:1px;background:var(--border)}
 .confirm-bar{background:var(--red-bg);border:1px solid #FECACA;border-radius:var(--r);padding:12px 14px;margin:0 16px 8px;display:flex;align-items:center;gap:8px}
 .confirm-bar p{flex:1;font-size:13px;color:var(--red);font-weight:600}
 
@@ -220,14 +224,45 @@ function recordToForm(r){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=r[fd.k]??(fd.
 const FUNIL=['Quente','Morno','Frio'];
 function filtered(){return S.records.filter(r=>{
   if(S.statusFilter==='Funil'){if(!FUNIL.includes(r.status))return false}
+  else if(S.statusFilter==='Fechados'){if(r.status!=='Retail')return false}
   else if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;
   if(S.monthFilter.length>0&&!S.monthFilter.includes(r.mes1||''))return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
-function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>r.mes1).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
+function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter==='Fechados')recs=recs.filter(r=>r.status==='Retail');else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>r.mes1).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
 function availableYears(){const ms=availableMonths();const yrs=[...new Set(ms.map(m=>m.split('/')[0]))];yrs.sort((a,b)=>b-a);return yrs}
 function monthsForYear(y){const ms=availableMonths();return ms.filter(m=>m.startsWith(y+'/'))}
 const MONTH_NAMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function statusCounts(){const c={};S.records.forEach(r=>c[r.status]=(c[r.status]||0)+1);return c}
+function groupByMonth(records){const g={};records.forEach(r=>{const m=r.mes1||'Sem mês';if(!g[m])g[m]=[];g[m].push(r)});const keys=Object.keys(g);keys.sort((a,b)=>b.localeCompare(a));return keys.map(k=>({month:k,records:g[k]}))}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function renderCard(r){return`
+  <div class="card" data-action="open-detail" data-id="${r.id}">
+    <div class="card-accent card-accent-${esc(r.status)}"></div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-name">${I.user} ${esc(r.id_cliente||'—')}</span>
+        <span class="card-status s-${esc(r.status)}">${esc(r.status)}</span>
+      </div>
+      <div class="card-rows">
+        ${r.model?`<div class="card-row">${I.car}<span>${esc(r.model)} · ${esc(r.version||'')}</span></div>`:''}
+        ${r.mat||r.chas?`<div class="card-row">${I.plate}<span>${r.mat?`<b style="font-family:ui-monospace,monospace;letter-spacing:.5px">${esc(r.mat)}</b>`:''} ${r.chas?`<span style="opacity:.5">· ${esc(r.chas)}</span>`:''}</span></div>`:''}
+        ${r.enc?`<div class="card-row">${I.hash}<span>Enc: <b>${esc(r.enc)}</b></span></div>`:''}
+        ${r.biz?`<div class="card-row">${I.hash}<span>Biz: <b>${esc(r.biz)}</b></span></div>`:''}
+        <div class="card-row">${I.cal}<span>${fmtDate(r.neg)}</span>${r.mes1?`<span style="opacity:.5">· ${esc(r.mes1)}</span>`:''}</div>
+        ${r.resp?`<div class="card-row">${I.user}<span>Resp: ${esc(r.resp)}</span></div>`:''}
+        ${r.fin?`<div class="card-row">${I.money}<span>${esc(r.fin)}</span></div>`:''}
+        ${r.col_198?`<div class="card-row">${I.note}<span>198: ${esc(r.col_198)}</span></div>`:''}
+        ${r.obs?`<div class="card-row">${I.note}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${esc(r.obs)}</span></div>`:''}
+      </div>
+      ${(r.bev||r.xev||r.gar)?`<div class="card-tags">
+        ${r.bev?'<span class="tag tag-bev">BEV</span>':''}
+        ${r.xev&&!r.bev?'<span class="tag tag-xev">xEV</span>':''}
+        ${r.gar?`<span class="tag tag-gar">${esc(r.gar)}</span>`:''}
+        ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
+      </div>`:''}
+      <button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>
+    </div>
+  </div>`}
 
 function renderLogin(){return`
 <div class="content"><div class="center-screen"><div class="center-box">
@@ -248,7 +283,9 @@ function renderList(){
   const curLabel=S.statusFilter==='all'?'Todos':S.statusFilter;
   return`
   <div class="app-layout">
+  <div class="m-overlay ${S.sidebarOpen?'show':''}" data-action="toggle-sidebar"></div>
   <div class="sidebar ${S.sidebarOpen?'':'closed'}">
+    <div class="sidebar-inner">
     <div class="sidebar-header">
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon">B</div>
@@ -283,8 +320,13 @@ function renderList(){
       <div class="sidebar-item ${S.statusFilter==='Matricula'?'active':''}" data-action="sidebar-filter" data-status="Matricula">
         <span class="sdot" style="background:var(--purple)"></span>Matricula<span class="scount">${c['Matricula']||0}</span>
       </div>
+      <div style="border-top:1px solid rgba(255,255,255,.08);margin:8px 0"></div>
+      <div class="sidebar-item ${S.statusFilter==='Fechados'?'active':''}" data-action="sidebar-filter" data-status="Fechados">
+        <span class="sdot" style="background:#22c55e"></span>Negócios Fechados<span class="scount">${c['Retail']||0}</span>
+      </div>
     </div>
     <div class="sidebar-close" data-action="toggle-sidebar">Fechar ✕</div>
+    </div>
   </div>
   <div class="main-panel">
   <div class="hdr">
@@ -345,37 +387,17 @@ function renderList(){
       </div>`;
     })():''}
     ${S.error?`<div class="error" style="margin:8px 16px">${esc(S.error)}</div>`:''}
-    <div class="cards">
-      ${f.length===0?'<div class="empty">Nenhum registo encontrado.</div>':f.map(r=>`
-        <div class="card" data-action="open-detail" data-id="${r.id}">
-          <div class="card-accent card-accent-${esc(r.status)}"></div>
-          <div class="card-body">
-            <div class="card-header">
-              <span class="card-name">${I.user} ${esc(r.id_cliente||'—')}</span>
-              <span class="card-status s-${esc(r.status)}">${esc(r.status)}</span>
-            </div>
-            <div class="card-rows">
-              ${r.model?`<div class="card-row">${I.car}<span>${esc(r.model)} · ${esc(r.version||'')}</span></div>`:''}
-              ${r.mat||r.chas?`<div class="card-row">${I.plate}<span>${r.mat?`<b style="font-family:ui-monospace,monospace;letter-spacing:.5px">${esc(r.mat)}</b>`:''} ${r.chas?`<span style="opacity:.5">· ${esc(r.chas)}</span>`:''}</span></div>`:''}
-              ${r.enc?`<div class="card-row">${I.hash}<span>Enc: <b>${esc(r.enc)}</b></span></div>`:''}
-              ${r.biz?`<div class="card-row">${I.hash}<span>Biz: <b>${esc(r.biz)}</b></span></div>`:''}
-              <div class="card-row">${I.cal}<span>${fmtDate(r.neg)}</span>${r.mes1?`<span style="opacity:.5">· ${esc(r.mes1)}</span>`:''}</div>
-              ${r.resp?`<div class="card-row">${I.user}<span>Resp: ${esc(r.resp)}</span></div>`:''}
-              ${r.fin?`<div class="card-row">${I.money}<span>${esc(r.fin)}</span></div>`:''}
-              ${r.col_198?`<div class="card-row">${I.note}<span>198: ${esc(r.col_198)}</span></div>`:''}
-              ${r.obs?`<div class="card-row">${I.note}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${esc(r.obs)}</span></div>`:''}
-            </div>
-            ${(r.bev||r.xev||r.gar)?`<div class="card-tags">
-              ${r.bev?'<span class="tag tag-bev">BEV</span>':''}
-              ${r.xev&&!r.bev?'<span class="tag tag-xev">xEV</span>':''}
-              ${r.gar?`<span class="tag tag-gar">${esc(r.gar)}</span>`:''}
-              ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
-            </div>`:''}
-            <button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>
-          </div>
+    ${f.length===0?'<div class="empty">Nenhum registo encontrado.</div>':
+      S.statusFilter==='Fechados'?groupByMonth(f).map(g=>`
+        <div class="month-group">
+          <span class="month-group-label">${esc(g.month)}</span>
+          <span class="month-group-count">${g.records.length}</span>
+          <div class="month-group-line"></div>
         </div>
-      `).join('')}
-    </div>
+        <div class="cards">${g.records.map(r=>renderCard(r)).join('')}</div>
+      `).join(''):
+      `<div class="cards">${f.map(r=>renderCard(r)).join('')}</div>`
+    }
   </div>
   <button class="fab" data-action="open-add">+</button>
   </div></div>`}
