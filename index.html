@@ -224,10 +224,10 @@ function recordToForm(r){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=r[fd.k]??(fd.
 const FUNIL=['Quente','Morno','Frio'];
 function filtered(){return S.records.filter(r=>{
   if(S.statusFilter==='Funil'){if(!FUNIL.includes(r.status))return false}
-  else if(S.statusFilter==='Fechados'){if(r.status!=='Retail')return false}
+  else if(S.statusFilter==='Fechados'){if(r.status!=='Retail'&&r.status!=='Carteira')return false}
   else if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;
   if(S.monthFilter.length>0&&!S.monthFilter.includes(getMonth(r)))return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
-function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter==='Fechados')recs=recs.filter(r=>r.status==='Retail');else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>getMonth(r)).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
+function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter==='Fechados')recs=recs.filter(r=>r.status==='Retail'||r.status==='Carteira');else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>getMonth(r)).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
 function availableYears(){const ms=availableMonths();const yrs=[...new Set(ms.map(m=>m.split('/')[0]))];yrs.sort((a,b)=>b-a);return yrs}
 function monthsForYear(y){const ms=availableMonths();return ms.filter(m=>m.startsWith(y+'/'))}
 const MONTH_NAMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -324,7 +324,7 @@ function renderList(){
       </div>
       <div style="border-top:1px solid rgba(255,255,255,.08);margin:8px 0"></div>
       <div class="sidebar-item ${S.statusFilter==='Fechados'?'active':''}" data-action="sidebar-filter" data-status="Fechados">
-        <span class="sdot" style="background:#22c55e"></span>Negócios Fechados<span class="scount">${c['Retail']||0}</span>
+        <span class="sdot" style="background:#22c55e"></span>Negócios Fechados<span class="scount">${(c['Retail']||0)+(c['Carteira']||0)}</span>
       </div>
     </div>
     <div class="sidebar-close" data-action="toggle-sidebar">Fechar ✕</div>
