@@ -92,9 +92,29 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
 .tag-bev{background:var(--blue-bg);color:var(--blue)}.tag-xev{background:var(--green-bg);color:var(--green)}.tag-gar{background:var(--orange-bg);color:var(--orange)}.tag-sm{background:var(--surface2);color:var(--text2);font-weight:600}
 
-.fab{position:fixed;bottom:calc(var(--safe-b)+28px);right:20px;width:56px;height:56px;border-radius:50%;background:var(--orange);color:#fff;font-size:26px;font-weight:300;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(232,89,12,.35);z-index:9999}
-.fab:active{background:var(--orange2);transform:scale(.92)}
-.fab svg{width:18px;height:18px}
+.fab{position:fixed;bottom:28px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--orange);color:#fff;font-size:24px;line-height:48px;text-align:center;box-shadow:0 4px 16px rgba(232,89,12,.35);z-index:9999}
+.fab:active{background:var(--orange2)}
+
+/* Sidebar */
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}
+.sidebar-overlay.open{opacity:1;pointer-events:auto}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:260px;background:#1a1a2e;color:#fff;z-index:101;transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;padding-top:var(--safe-t)}
+.sidebar.open{transform:translateX(0)}
+.sidebar-header{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-logo{display:flex;align-items:center;gap:10px}
+.sidebar-logo-icon{width:36px;height:36px;border-radius:10px;background:var(--orange);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px}
+.sidebar-logo-text{font-size:15px;font-weight:800;letter-spacing:-.3px}
+.sidebar-logo-sub{font-size:10px;color:rgba(255,255,255,.4);font-weight:500;margin-top:1px}
+.sidebar-nav{padding:12px 0;flex:1;overflow-y:auto}
+.sidebar-item{display:flex;align-items:center;gap:12px;padding:11px 20px;font-size:13px;font-weight:600;color:rgba(255,255,255,.55);cursor:pointer;transition:all .12s;border-left:3px solid transparent}
+.sidebar-item:active{background:rgba(255,255,255,.05)}
+.sidebar-item.active{color:#fff;background:rgba(255,255,255,.08);border-left-color:var(--orange)}
+.sidebar-item .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sidebar-item .scount{margin-left:auto;font-size:11px;font-weight:500;opacity:.5}
+.sidebar-close{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.4);font-weight:500;cursor:pointer;text-align:center}
+.sidebar-close:active{color:#fff}
+.hamburger{display:flex;flex-direction:column;gap:4px;padding:8px 6px;cursor:pointer}
+.hamburger span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px}
 
 .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin:0 16px 8px}
 .section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer}
@@ -152,7 +172,7 @@ let S={
   config:{url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'},
   token:null,records:[],selected:null,form:{},
   search:'',statusFilter:'all',monthFilter:'all',bevFilter:'all',xevFilter:'all',
-  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false
+  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:false
 };
 function setState(u){Object.assign(S,u);render()}
 
@@ -186,20 +206,37 @@ function renderLogin(){return`
 function renderList(){
   const f=filtered(),c=statusCounts(),months=availableMonths();
   const af=(S.monthFilter!=='all'?1:0)+(S.bevFilter!=='all'?1:0)+(S.xevFilter!=='all'?1:0);
+  const curLabel=S.statusFilter==='all'?'Todos':S.statusFilter;
   return`
+  <div class="sidebar-overlay ${S.sidebarOpen?'open':''}" data-action="close-sidebar"></div>
+  <div class="sidebar ${S.sidebarOpen?'open':''}">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">B</div>
+        <div><div class="sidebar-logo-text">Baviera Control</div>
+        <div class="sidebar-logo-sub">Pipeline de vendas</div></div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-item ${S.statusFilter==='all'?'active':''}" data-action="sidebar-filter" data-status="all">
+        <span class="sdot" style="background:var(--orange)"></span>Todos<span class="scount">${S.records.length}</span>
+      </div>
+      ${STATUSES.map(s=>`<div class="sidebar-item ${S.statusFilter===s?'active':''}" data-action="sidebar-filter" data-status="${s}">
+        <span class="sdot" style="background:${SDOT[s]}"></span>${s}<span class="scount">${c[s]||0}</span>
+      </div>`).join('')}
+    </div>
+    <div class="sidebar-close" data-action="close-sidebar">Fechar ✕</div>
+  </div>
   <div class="hdr">
+    <button class="hamburger" data-action="open-sidebar"><span></span><span></span><span></span></button>
     <div class="hdr-accent"></div>
-    <div class="hdr-title">Baviera Control</div>
+    <div class="hdr-title">${esc(curLabel)}</div>
     <div class="hdr-sub">${f.length} de ${S.records.length}</div>
     <button class="hdr-btn" data-action="refresh" ${S.loading?'disabled':''}>${S.loading?'…':'↻'}</button>
     <button class="hdr-btn" data-action="logout">Sair</button>
   </div>
   <div class="content">
     <div class="search-wrap"><input class="search-input" id="f-search" placeholder="Pesquisar cliente, modelo, matrícula..." value="${esc(S.search)}"></div>
-    <div class="filters">
-      <button class="ftab ${S.statusFilter==='all'?'active':''}" data-action="filter" data-status="all">Todos<span class="ct"> ${S.records.length}</span></button>
-      ${STATUSES.map(s=>`<button class="ftab ${S.statusFilter===s?'active':''}" data-action="filter" data-status="${s}"><span class="dot" style="background:${SDOT[s]}"></span>${s}<span class="ct"> ${c[s]||0}</span></button>`).join('')}
-    </div>
     <div class="filters2">
       <span class="flabel">Filtros</span>
       ${months.map(m=>`<button class="pill2 ${S.monthFilter===m?'active':''}" data-action="filter-month" data-month="${esc(m)}">${esc(m)}</button>`).join('')}
@@ -320,6 +357,9 @@ function bindEvents(){
       case'login':{const em=document.getElementById('f-email')?.value?.trim(),pw=document.getElementById('f-pw')?.value;if(!em||!pw){setState({error:'Preenche email e password.'});return}setState({loading:true,error:''});supabaseAuth(em,pw).then(r=>{S.token=r.access_token;return loadRecords()}).then(()=>setState({screen:'list'})).catch(e=>setState({error:e.message,loading:false}));break}
       case'logout':setState({token:null,records:[],screen:'login',error:''});break;
       case'refresh':loadRecords();break;
+      case'open-sidebar':setState({sidebarOpen:true});break;
+      case'close-sidebar':setState({sidebarOpen:false});break;
+      case'sidebar-filter':setState({statusFilter:el.dataset.status,monthFilter:'all',bevFilter:'all',xevFilter:'all',sidebarOpen:false});break;
       case'filter':setState({statusFilter:el.dataset.status,monthFilter:'all',bevFilter:'all',xevFilter:'all'});break;
       case'filter-month':setState({monthFilter:S.monthFilter===el.dataset.month?'all':el.dataset.month});break;
       case'filter-bev':setState({bevFilter:S.bevFilter==='1'?'all':'1'});break;
