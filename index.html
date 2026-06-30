@@ -568,12 +568,20 @@ function renderEdit(){
 
 function render(){
   const app = document.getElementById('app');
+  const contentEl = app.querySelector('.content');
+  const scrollTop = contentEl ? contentEl.scrollTop : 0;
+  const prevScreen = app.dataset.screen || '';
   const screens = {
     loading:'<div class="content"><div class="center-screen"><p style="color:var(--text3)">A carregar...</p></div></div>',
     login:renderLogin, list:renderList, detail:renderDetail, edit:renderEdit
   };
   const fn = screens[S.screen];
   app.innerHTML = typeof fn==='function' ? fn() : fn;
+  app.dataset.screen = S.screen;
+  if(prevScreen === S.screen){
+    const newContent = app.querySelector('.content');
+    if(newContent) newContent.scrollTop = scrollTop;
+  }
   bindEvents();
 }
 
@@ -633,7 +641,13 @@ function bindEvents(){
   };
   const searchInput = document.getElementById('f-search');
   if(searchInput){
-    searchInput.oninput = function(){ S.search = this.value; render(); this.focus(); };
+    searchInput.oninput = function(){
+      const pos = this.selectionStart;
+      S.search = this.value;
+      render();
+      const el = document.getElementById('f-search');
+      if(el){el.focus();el.setSelectionRange(pos,pos);}
+    };
   }
   const pwInput = document.getElementById('f-pw');
   if(pwInput){
