@@ -262,7 +262,7 @@ function renderCard(r){return`
         ${r.gar?`<span class="tag tag-gar">${esc(r.gar)}</span>`:''}
         ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
       </div>`:''}
-      <button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>
+      ${r.status==='Carteira'||r.status==='Matricula'?`<button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>`:''}
     </div>
   </div>`}
 
