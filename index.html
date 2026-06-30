@@ -94,6 +94,9 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .fpanel-toggle.active{background:var(--orange-bg);color:var(--orange);border-color:var(--orange)}
 .fpanel-quick{padding:10px;border-radius:var(--r);border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text2);background:var(--surface);text-align:center;cursor:pointer}
 .fpanel-quick:active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.btn-copy{margin-top:8px;width:100%;padding:8px;border-radius:var(--r);border:1.5px solid var(--orange);font-size:11px;font-weight:700;color:var(--orange);background:var(--surface);text-align:center;cursor:pointer;transition:all .15s}
+.btn-copy:active{background:var(--orange);color:#fff}
+.btn-copy.copied{background:var(--green);color:#fff;border-color:var(--green)}
 
 .cards{padding:6px 16px;display:flex;flex-direction:column;gap:6px}
 .card{background:var(--surface);border-radius:var(--r2);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:border-color .12s}
@@ -331,6 +334,7 @@ function renderList(){
               ${r.gar?`<span class="tag tag-gar">${esc(r.gar)}</span>`:''}
               ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
             </div>`:''}
+            <button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>
           </div>
         </div>
       `).join('')}
@@ -434,6 +438,23 @@ function bindEvents(){
       case'quick-quarter':{const d=new Date();const y=d.getFullYear();const q=Math.floor(d.getMonth()/3);const qm=[0,1,2].map(i=>`${y}/${String(q*3+i+1).padStart(2,'0')}`);const ms=availableMonths().filter(m=>qm.includes(m));setState({monthFilter:ms.length?ms:qm,filterYear:String(y)});break}
       case'toggle-filters':{const yrs=availableYears();setState({filtersOpen:!S.filtersOpen,filterYear:S.filterYear||yrs[0]||'2026'});break}
       case'set-year':setState({filterYear:el.dataset.year});break;
+      case'copy-pedido':{
+        e.stopPropagation();
+        const id=parseInt(el.dataset.id);
+        const r=S.records.find(x=>x.id===id);
+        if(r){
+          const txt=`Solicito pedido de matrícula desta viatura,\n• Modelo: ${r.model||''} ${r.version||''}\n• CLIENTE: ${r.id_cliente||''}\n• Encomenda: ${r.enc||''}\n• CHASSIS: ${r.chas||''}\n• Bizagi: ${r.biz||''}\nFINANCIAMENTO: ${r.fin||''}`;
+          navigator.clipboard.writeText(txt).then(()=>{
+            el.textContent='✓ Copiado!';el.classList.add('copied');
+            setTimeout(()=>{el.textContent='📋 Pedido de Matrícula';el.classList.remove('copied')},2000);
+          }).catch(()=>{
+            const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+            el.textContent='✓ Copiado!';el.classList.add('copied');
+            setTimeout(()=>{el.textContent='📋 Pedido de Matrícula';el.classList.remove('copied')},2000);
+          });
+        }
+        break;
+      }
       case'open-detail':{const id=parseInt(el.dataset.id),r=S.records.find(x=>x.id===id);if(r)setState({selected:r,screen:'detail',confirmDelete:false,openGroups:{Identificação:true}});break}
       case'back-to-list':setState({screen:'list',selected:null});break;
       case'open-edit':setState({form:recordToForm(S.selected||{}),screen:'edit',error:'',openGroups:{Identificação:true}});break;
