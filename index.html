@@ -233,7 +233,7 @@ const FIELD_GROUPS = [
   ]},
   {g:'Negócio',fields:[
     {k:'neg',l:'Data Negócio',t:'date'},
-    {k:'mes1',l:'Mês Referência',t:'text'},
+    {k:'mes1',l:'Mês Referência',t:'month'},
     {k:'type',l:'Tipo',t:'select',o:TYPES},
     {k:'origin',l:'Origem',t:'select',o:ORIGINS},
     {k:'profile',l:'Perfil',t:'select',o:PROFILES},
@@ -549,6 +549,8 @@ function renderEdit(){
                     </select>
                   `:f.t==='textarea'?`
                     <textarea class="field-input" data-field="${f.k}" rows="3">${esc(S.form[f.k]||'')}</textarea>
+                  `:f.t==='month'?`
+                    <input class="field-input" type="month" data-field="${f.k}" data-fmt="month" value="${esc((S.form[f.k]||'').replace('/','-'))}">
                   `:f.t==='date'?`
                     <input class="field-input" type="date" data-field="${f.k}" value="${esc(S.form[f.k]||'')}">
                   `:`
@@ -658,7 +660,9 @@ function bindEvents(){
 function collectFormData(){
   document.querySelectorAll('[data-field]').forEach(el=>{
     const k = el.dataset.field;
-    S.form[k] = el.value;
+    let v = el.value;
+    if(el.dataset.fmt==='month' && v) v = v.replace('-','/');
+    S.form[k] = v;
   });
 }
 
