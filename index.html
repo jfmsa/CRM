@@ -196,7 +196,7 @@ let S={
   config:{url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'},
   token:null,records:[],selected:null,form:{},
   search:'',statusFilter:'all',monthFilter:[],bevFilter:'all',xevFilter:'all',
-  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:false,filtersOpen:false,filterYear:null
+  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:true,filtersOpen:false,filterYear:null
 };
 function setState(u){Object.assign(S,u);render()}
 
@@ -209,8 +209,12 @@ async function deleteRecord(){setState({loading:true,error:''});try{await supaba
 function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})}catch{return d}}
 function emptyForm(){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=fd.t==='toggle'?0:'');return f}
 function recordToForm(r){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=r[fd.k]??(fd.t==='toggle'?0:''));return f}
-function filtered(){return S.records.filter(r=>{if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;if(S.monthFilter.length>0&&!S.monthFilter.includes(r.mes1||''))return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
-function availableMonths(){let recs=S.records;if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>r.mes1).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
+const FUNIL=['Quente','Morno','Frio'];
+function filtered(){return S.records.filter(r=>{
+  if(S.statusFilter==='Funil'){if(!FUNIL.includes(r.status))return false}
+  else if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;
+  if(S.monthFilter.length>0&&!S.monthFilter.includes(r.mes1||''))return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
+function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>r.mes1).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
 function availableYears(){const ms=availableMonths();const yrs=[...new Set(ms.map(m=>m.split('/')[0]))];yrs.sort((a,b)=>b-a);return yrs}
 function monthsForYear(y){const ms=availableMonths();return ms.filter(m=>m.startsWith(y+'/'))}
 const MONTH_NAMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -248,9 +252,29 @@ function renderList(){
       <div class="sidebar-item ${S.statusFilter==='all'?'active':''}" data-action="sidebar-filter" data-status="all">
         <span class="sdot" style="background:var(--orange)"></span>Todos<span class="scount">${S.records.length}</span>
       </div>
-      ${STATUSES.map(s=>`<div class="sidebar-item ${S.statusFilter===s?'active':''}" data-action="sidebar-filter" data-status="${s}">
-        <span class="sdot" style="background:${SDOT[s]}"></span>${s}<span class="scount">${c[s]||0}</span>
-      </div>`).join('')}
+      <div class="sidebar-item ${S.statusFilter==='Retail'?'active':''}" data-action="sidebar-filter" data-status="Retail">
+        <span class="sdot" style="background:var(--green)"></span>Retail<span class="scount">${c['Retail']||0}</span>
+      </div>
+      <div class="sidebar-item ${S.statusFilter==='Carteira'?'active':''}" data-action="sidebar-filter" data-status="Carteira">
+        <span class="sdot" style="background:var(--blue)"></span>Carteira<span class="scount">${c['Carteira']||0}</span>
+      </div>
+      <div class="sidebar-item ${S.statusFilter==='Funil'?'active':''}" data-action="sidebar-filter" data-status="Funil">
+        <span class="sdot" style="background:var(--red)"></span>Funil<span class="scount">${(c['Quente']||0)+(c['Morno']||0)+(c['Frio']||0)}</span>
+      </div>
+      <div style="padding-left:32px">
+        <div class="sidebar-item ${S.statusFilter==='Quente'?'active':''}" data-action="sidebar-filter" data-status="Quente" style="padding:7px 20px;font-size:12px">
+          <span class="sdot" style="background:var(--red);width:6px;height:6px"></span>Quente<span class="scount">${c['Quente']||0}</span>
+        </div>
+        <div class="sidebar-item ${S.statusFilter==='Morno'?'active':''}" data-action="sidebar-filter" data-status="Morno" style="padding:7px 20px;font-size:12px">
+          <span class="sdot" style="background:var(--amber);width:6px;height:6px"></span>Morno<span class="scount">${c['Morno']||0}</span>
+        </div>
+        <div class="sidebar-item ${S.statusFilter==='Frio'?'active':''}" data-action="sidebar-filter" data-status="Frio" style="padding:7px 20px;font-size:12px">
+          <span class="sdot" style="background:var(--slate);width:6px;height:6px"></span>Frio<span class="scount">${c['Frio']||0}</span>
+        </div>
+      </div>
+      <div class="sidebar-item ${S.statusFilter==='Matricula'?'active':''}" data-action="sidebar-filter" data-status="Matricula">
+        <span class="sdot" style="background:var(--purple)"></span>Matricula<span class="scount">${c['Matricula']||0}</span>
+      </div>
     </div>
     <div class="sidebar-close" data-action="close-sidebar">Fechar ✕</div>
   </div>
@@ -323,9 +347,13 @@ function renderList(){
             </div>
             <div class="card-rows">
               ${r.model?`<div class="card-row">${I.car}<span>${esc(r.model)} · ${esc(r.version||'')}</span></div>`:''}
-              ${r.mat?`<div class="card-row">${I.plate}<span style="font-family:ui-monospace,monospace;letter-spacing:.5px">${esc(r.mat)}</span>${r.chas?`<span style="opacity:.5">· ${esc(r.chas)}</span>`:''}</div>`:''}
+              ${r.mat||r.chas?`<div class="card-row">${I.plate}<span>${r.mat?`<b style="font-family:ui-monospace,monospace;letter-spacing:.5px">${esc(r.mat)}</b>`:''} ${r.chas?`<span style="opacity:.5">· ${esc(r.chas)}</span>`:''}</span></div>`:''}
+              ${r.enc?`<div class="card-row">${I.hash}<span>Enc: <b>${esc(r.enc)}</b></span></div>`:''}
+              ${r.biz?`<div class="card-row">${I.hash}<span>Biz: <b>${esc(r.biz)}</b></span></div>`:''}
               <div class="card-row">${I.cal}<span>${fmtDate(r.neg)}</span>${r.mes1?`<span style="opacity:.5">· ${esc(r.mes1)}</span>`:''}</div>
-              ${r.fin||r.biz?`<div class="card-row">${I.money}<span>${[r.fin,r.biz?'Biz:'+r.biz:''].filter(Boolean).join(' · ')}</span></div>`:''}
+              ${r.resp?`<div class="card-row">${I.user}<span>Resp: ${esc(r.resp)}</span></div>`:''}
+              ${r.fin?`<div class="card-row">${I.money}<span>${esc(r.fin)}</span></div>`:''}
+              ${r.col_198?`<div class="card-row">${I.note}<span>198: ${esc(r.col_198)}</span></div>`:''}
               ${r.obs?`<div class="card-row">${I.note}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${esc(r.obs)}</span></div>`:''}
             </div>
             ${(r.bev||r.xev||r.gar)?`<div class="card-tags">
