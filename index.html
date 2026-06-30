@@ -235,7 +235,7 @@ function statusCounts(){const c={};S.records.forEach(r=>c[r.status]=(c[r.status]
 function groupByMonth(records){const g={};records.forEach(r=>{const m=getMonth(r)||'Sem mês';if(!g[m])g[m]=[];g[m].push(r)});const keys=Object.keys(g);keys.sort((a,b)=>b.localeCompare(a));return keys.map(k=>({month:k,records:g[k]}))}
 function negToMonth(r){if(!r.neg)return'';try{const d=new Date(r.neg);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`}catch{return''}}
 function getMonth(r){return S.statusFilter==='Fechados'?negToMonth(r):(r.mes1||'')}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function esc(s){var x=String(s||'');x=x.replace(/&/g,'&amp;');x=x.replace(/</g,'&lt;');x=x.replace(/>/g,'&gt;');x=x.replace(/"/g,'&quot;');return x}
 
 function renderCard(r){return`
   <div class="card" data-action="open-detail" data-id="${r.id}">
