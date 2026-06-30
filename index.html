@@ -172,7 +172,7 @@ let S={
   config:{url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'},
   token:null,records:[],selected:null,form:{},
   search:'',statusFilter:'all',monthFilter:'all',bevFilter:'all',xevFilter:'all',
-  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:false
+  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:false,filtersOpen:false
 };
 function setState(u){Object.assign(S,u);render()}
 
@@ -237,13 +237,17 @@ function renderList(){
   </div>
   <div class="content">
     <div class="search-wrap"><input class="search-input" id="f-search" placeholder="Pesquisar cliente, modelo, matrícula..." value="${esc(S.search)}"></div>
-    <div class="filters2">
-      <span class="flabel">Filtros</span>
+    <div style="padding:10px 16px 0;display:flex;gap:8px;align-items:center">
+      <button class="pill2 ${S.filtersOpen?'active':''}" data-action="toggle-filters" style="display:flex;align-items:center;gap:4px">☰ Filtros${af?` (${af})`:''}</button>
+      ${af?`<button class="pill2 clear" data-action="clear-filters">✕ Limpar</button>`:''}
+    </div>
+    ${S.filtersOpen?`<div class="filters2" style="padding-top:8px">
+      <span class="flabel">Mês</span>
       ${months.map(m=>`<button class="pill2 ${S.monthFilter===m?'active':''}" data-action="filter-month" data-month="${esc(m)}">${esc(m)}</button>`).join('')}
+      <span class="flabel" style="margin-left:4px">Tipo</span>
       <button class="pill2 ${S.bevFilter==='1'?'active':''}" data-action="filter-bev">BEV</button>
       <button class="pill2 ${S.xevFilter==='1'?'active':''}" data-action="filter-xev">xEV</button>
-      ${af?`<button class="pill2 clear" data-action="clear-filters">✕</button>`:''}
-    </div>
+    </div>`:''}
     ${S.error?`<div class="error" style="margin:8px 16px">${esc(S.error)}</div>`:''}
     <div class="cards">
       ${f.length===0?'<div class="empty">Nenhum registo encontrado.</div>':f.map(r=>`
@@ -365,6 +369,7 @@ function bindEvents(){
       case'filter-bev':setState({bevFilter:S.bevFilter==='1'?'all':'1'});break;
       case'filter-xev':setState({xevFilter:S.xevFilter==='1'?'all':'1'});break;
       case'clear-filters':setState({monthFilter:'all',bevFilter:'all',xevFilter:'all'});break;
+      case'toggle-filters':setState({filtersOpen:!S.filtersOpen});break;
       case'open-detail':{const id=parseInt(el.dataset.id),r=S.records.find(x=>x.id===id);if(r)setState({selected:r,screen:'detail',confirmDelete:false,openGroups:{Identificação:true}});break}
       case'back-to-list':setState({screen:'list',selected:null});break;
       case'open-edit':setState({form:recordToForm(S.selected||{}),screen:'edit',error:'',openGroups:{Identificação:true}});break;
