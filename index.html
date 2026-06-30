@@ -226,14 +226,15 @@ function filtered(){return S.records.filter(r=>{
   if(S.statusFilter==='Funil'){if(!FUNIL.includes(r.status))return false}
   else if(S.statusFilter==='Fechados'){if(r.status!=='Retail')return false}
   else if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;
-  if(S.monthFilter.length>0&&!S.monthFilter.includes(r.mes1||''))return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
-function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter==='Fechados')recs=recs.filter(r=>r.status==='Retail');else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>r.mes1).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
+  if(S.monthFilter.length>0&&!S.monthFilter.includes(getMonth(r)))return false;if(S.bevFilter!=='all'&&!r.bev)return false;if(S.xevFilter!=='all'&&!r.xev)return false;if(S.search){const s=S.search.toLowerCase();return['id_cliente','model','version','mat','obs','biz','enc'].some(k=>(r[k]||'').toLowerCase().includes(s))}return true})}
+function availableMonths(){let recs=S.records;if(S.statusFilter==='Funil')recs=recs.filter(r=>FUNIL.includes(r.status));else if(S.statusFilter==='Fechados')recs=recs.filter(r=>r.status==='Retail');else if(S.statusFilter!=='all')recs=recs.filter(r=>r.status===S.statusFilter);const m=[...new Set(recs.map(r=>getMonth(r)).filter(Boolean))];m.sort((a,b)=>b.localeCompare(a));return m}
 function availableYears(){const ms=availableMonths();const yrs=[...new Set(ms.map(m=>m.split('/')[0]))];yrs.sort((a,b)=>b-a);return yrs}
 function monthsForYear(y){const ms=availableMonths();return ms.filter(m=>m.startsWith(y+'/'))}
 const MONTH_NAMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function statusCounts(){const c={};S.records.forEach(r=>c[r.status]=(c[r.status]||0)+1);return c}
-function groupByMonth(records){const g={};records.forEach(r=>{const m=r.mes1||'Sem mês';if(!g[m])g[m]=[];g[m].push(r)});const keys=Object.keys(g);keys.sort((a,b)=>b.localeCompare(a));return keys.map(k=>({month:k,records:g[k]}))}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function groupByMonth(records){const g={};records.forEach(r=>{const m=getMonth(r)||'Sem mês';if(!g[m])g[m]=[];g[m].push(r)});const keys=Object.keys(g);keys.sort((a,b)=>b.localeCompare(a));return keys.map(k=>({month:k,records:g[k]}))}
+function negToMonth(r){if(!r.neg)return'';try{const d=new Date(r.neg);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`}catch{return''}}
+function getMonth(r){return S.statusFilter==='Fechados'?negToMonth(r):(r.mes1||'')}return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function renderCard(r){return`
   <div class="card" data-action="open-detail" data-id="${r.id}">
