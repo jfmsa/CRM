@@ -247,6 +247,14 @@ function calcAlerts(records){
   Object.entries(funilGroups).forEach(([s,recs])=>{if(recs.length)alerts.push({id:'funil_'+s,icon:'🟡',label:`${recs.length} ${s.toLowerCase()} há +${recs[0].alert_days||10}d`,count:recs.length,ids:recs.map(r=>r.id)})});
   const cartAlert=records.filter(r=>r.status==='Carteira'&&!r.enc);
   if(cartAlert.length)alerts.push({id:'cart',icon:'🔵',label:`${cartAlert.length} carteira${cartAlert.length>1?'s':''} sem encomenda`,count:cartAlert.length,ids:cartAlert.map(r=>r.id)});
+  const nowD=new Date();const nowYM=nowD.getFullYear()*12+nowD.getMonth();
+  const cmeAlert=records.filter(r=>{
+    if(!r.cme||r.cme_confirmed||!r.mes1)return false;
+    const p=r.mes1.split('/').map(Number);if(p.length!==2)return false;
+    const targetYM=(p[0]*12)+(p[1]-1);const alertYM=targetYM-2;
+    return nowYM>=alertYM;
+  });
+  if(cmeAlert.length)alerts.push({id:'cme',icon:'🟠',label:`${cmeAlert.length} CME a tratar (2 meses)`,count:cmeAlert.length,ids:cmeAlert.map(r=>r.id)});
   return alerts;
 }
 function negToMonth(r){if(!r.neg)return'';try{const d=new Date(r.neg);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`}catch{return''}}
@@ -279,6 +287,8 @@ function renderCard(r){return`
         ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
       </div>`:''}
       ${r.status==='Carteira'||r.status==='Matricula'?`<button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>`:''}
+      ${r.cme&&!r.cme_confirmed?`<button class="btn-copy" data-action="confirm-cme" data-id="${r.id}" style="border-color:var(--amber);color:var(--amber)">🟠 Confirmar CME</button>`:''}
+      ${r.cme&&r.cme_confirmed?`<div style="font-size:11px;color:var(--green);font-weight:600;text-align:center;padding:6px 0">✓ CME confirmado</div>`:''}
     </div>
   </div>`}
 
@@ -549,6 +559,18 @@ function bindEvents(){
             setTimeout(()=>{el.textContent='📋 Pedido de Matrícula';el.classList.remove('copied')},2000);
           });
         }
+        break;
+      }
+      case'confirm-cme':{
+        e.stopPropagation();
+        const id=parseInt(el.dataset.id);
+        el.textContent='A confirmar...';el.disabled=true;
+        supabaseApi('PATCH','/baviera_control?id=eq.'+id,{cme_confirmed:new Date().toISOString()}).then(()=>{
+          return loadRecords();
+        }).then(()=>{setState({})}).catch(err=>{
+          el.textContent='🟠 Confirmar CME';el.disabled=false;
+          alert('Erro: '+err.message);
+        });
         break;
       }
       case'open-detail':{const id=parseInt(el.dataset.id),r=S.records.find(x=>x.id===id);if(r)setState({selected:r,screen:'detail',confirmDelete:false,openGroups:{Identificação:true}});break}
