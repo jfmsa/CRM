@@ -145,6 +145,8 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .sidebar-item .scount{margin-left:auto;font-size:11px;font-weight:500;opacity:.5}
 .sidebar-close{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.4);font-weight:500;cursor:pointer;text-align:center}
 .sidebar-close:active{color:#fff}
+.sidebar-alert{border-left-color:transparent!important}
+.sidebar-alert.active{background:rgba(232,89,12,.15)!important;border-left-color:var(--orange)!important}
 .hamburger{display:flex;flex-direction:column;gap:4px;padding:8px 6px;cursor:pointer}
 .hamburger span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px}
 
@@ -195,7 +197,7 @@ const STATUSES=['Retail','Carteira','Quente','Morno','Frio','Matricula'];
 const SDOT={Retail:'var(--green)',Carteira:'var(--blue)',Quente:'var(--red)',Morno:'var(--amber)',Frio:'var(--slate)',Matricula:'var(--purple)'};
 const TYPES=['VN','VD','VP'],ORIGINS=['','Cliente','Recom.','Stand','Prosp','Lead'],PROFILES=['','PE','PART','BUS','ENI','FLE','CA'],GARS=['','GAR','nGAR'],FINS=['','FS','PP','Fext','Fint'];
 const FIELD_GROUPS=[
-  {g:'Identificação',fields:[{k:'status',l:'Status',t:'select',o:STATUSES},{k:'id_cliente',l:'Cliente',t:'text'},{k:'resp',l:'Responsável',t:'text'},{k:'local',l:'Código Postal',t:'text'}]},
+  {g:'Identificação',fields:[{k:'status',l:'Status',t:'select',o:STATUSES},{k:'alert_days',l:'Alertar após (dias)',t:'number',show:'funil'},{k:'id_cliente',l:'Cliente',t:'text'},{k:'resp',l:'Responsável',t:'text'},{k:'local',l:'Código Postal',t:'text'}]},
   {g:'Negócio',fields:[{k:'neg',l:'Data Negócio',t:'date'},{k:'mes1',l:'Mês Referência',t:'month'},{k:'type',l:'Tipo',t:'select',o:TYPES},{k:'origin',l:'Origem',t:'select',o:ORIGINS},{k:'profile',l:'Perfil',t:'select',o:PROFILES},{k:'biz',l:'Bizagi',t:'text'},{k:'fin',l:'Financiamento',t:'select',o:FINS}]},
   {g:'Viatura',fields:[{k:'model',l:'Modelo',t:'text'},{k:'version',l:'Versão',t:'text'},{k:'enc',l:'Encomenda',t:'text'},{k:'chas',l:'Chassis',t:'text'},{k:'mat',l:'Matrícula',t:'text'},{k:'gar',l:'Garantia',t:'select',o:GARS}]},
   {g:'Flags',fields:[{k:'qor',l:'QoR',t:'toggle'},{k:'xev',l:'xEV',t:'toggle'},{k:'bev',l:'BEV',t:'toggle'},{k:'m_flag',l:'M',t:'toggle'},{k:'csc',l:'CSC',t:'toggle'},{k:'cme',l:'CME',t:'toggle'}]},
@@ -208,21 +210,23 @@ let S={
   config:{url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'},
   token:null,records:[],selected:null,form:{},
   search:'',statusFilter:'all',monthFilter:[],bevFilter:'all',xevFilter:'all',
-  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:true,filtersOpen:false,filterYear:null
+  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:true,filtersOpen:false,filterYear:null,alertFilter:null,alertIds:[]
 };
 function setState(u){Object.assign(S,u);render()}
 
 async function supabaseAuth(e,p){const r=await fetch(`${S.config.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{'apikey':S.config.key,'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});if(!r.ok)throw new Error('Login falhou. Verifica email e password.');return r.json()}
 async function supabaseApi(m,path,body){const h={'apikey':S.config.key,'Authorization':`Bearer ${S.token}`,'Content-Type':'application/json'};if(m==='POST'||m==='PATCH')h['Prefer']='return=representation';const o={method:m,headers:h};if(body)o.body=JSON.stringify(body);const r=await fetch(`${S.config.url}/rest/v1${path}`,o);if(!r.ok){const e=await r.text();throw new Error(e)}const t=await r.text();return t?JSON.parse(t):null}
 async function loadRecords(){setState({loading:true,error:''});try{const d=await supabaseApi('GET','/baviera_control?select=*&order=neg.desc.nullslast');setState({records:d,loading:false})}catch(e){setState({error:'Erro: '+e.message,loading:false})}}
-async function saveRecord(){setState({loading:true,error:''});try{const b={...S.form};['neg','dmat','col_298','app'].forEach(k=>{if(!b[k])b[k]=null});['qor','xev','bev','m_flag','csc','cme'].forEach(k=>{b[k]=b[k]?parseInt(b[k]):null});delete b.id;delete b.created_at;if(S.selected)await supabaseApi('PATCH',`/baviera_control?id=eq.${S.selected.id}`,b);else await supabaseApi('POST','/baviera_control',b);await loadRecords();setState({screen:'list',selected:null,loading:false})}catch(e){setState({error:'Erro ao guardar: '+e.message,loading:false})}}
+async function saveRecord(){setState({loading:true,error:''});try{const b={...S.form};['neg','dmat','col_298','app'].forEach(k=>{if(!b[k])b[k]=null});['qor','xev','bev','m_flag','csc','cme'].forEach(k=>{b[k]=b[k]?parseInt(b[k]):null});if(!b.alert_days)b.alert_days=null;else b.alert_days=parseInt(b.alert_days);delete b.id;delete b.created_at;if(S.selected){if(b.status!==S.selected.status)b.status_updated_at=new Date().toISOString();delete b.status_updated_at_keep;await supabaseApi('PATCH',`/baviera_control?id=eq.${S.selected.id}`,b)}else{b.status_updated_at=new Date().toISOString();await supabaseApi('POST','/baviera_control',b)}await loadRecords();setState({screen:'list',selected:null,loading:false})}catch(e){setState({error:'Erro ao guardar: '+e.message,loading:false})}}
 async function deleteRecord(){setState({loading:true,error:''});try{await supabaseApi('DELETE',`/baviera_control?id=eq.${S.selected.id}`);await loadRecords();setState({screen:'list',selected:null,confirmDelete:false,loading:false})}catch(e){setState({error:'Erro: '+e.message,loading:false})}}
 
 function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})}catch{return d}}
 function emptyForm(){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=fd.t==='toggle'?0:'');return f}
 function recordToForm(r){const f={};ALL_FIELDS.forEach(fd=>f[fd.k]=r[fd.k]??(fd.t==='toggle'?0:''));return f}
 const FUNIL=['Quente','Morno','Frio'];
-function filtered(){return S.records.filter(r=>{
+function filtered(){
+  if(S.alertFilter&&S.alertIds.length>0)return S.records.filter(r=>S.alertIds.includes(r.id));
+  return S.records.filter(r=>{
   if(S.statusFilter==='Funil'){if(!FUNIL.includes(r.status))return false}
   else if(S.statusFilter==='Fechados'){if(r.status!=='Retail'&&r.status!=='Carteira')return false}
   else if(S.statusFilter!=='all'&&r.status!==S.statusFilter)return false;
@@ -233,6 +237,18 @@ function monthsForYear(y){const ms=availableMonths();return ms.filter(m=>m.start
 const MONTH_NAMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function statusCounts(){const c={};S.records.forEach(r=>c[r.status]=(c[r.status]||0)+1);return c}
 function groupByMonth(records){const g={};records.forEach(r=>{const m=getMonth(r)||'Sem mês';if(!g[m])g[m]=[];g[m].push(r)});const keys=Object.keys(g);keys.sort((a,b)=>b.localeCompare(a));return keys.map(k=>({month:k,records:g[k]}))}
+
+function calcAlerts(records){
+  const now=Date.now();const day=86400000;const alerts=[];
+  const matAlert=records.filter(r=>r.status==='Matricula'&&r.status_updated_at&&!r.mat&&(now-new Date(r.status_updated_at).getTime())>=2*day);
+  if(matAlert.length)alerts.push({id:'mat',icon:'🔴',label:`${matAlert.length} matrícula${matAlert.length>1?'s':''} há +2 dias`,count:matAlert.length,ids:matAlert.map(r=>r.id)});
+  const funilGroups={Quente:[],Morno:[],Frio:[]};
+  records.forEach(r=>{if(FUNIL.includes(r.status)&&r.status_updated_at){const days=Math.floor((now-new Date(r.status_updated_at).getTime())/day);const limit=r.alert_days||10;if(days>=limit)funilGroups[r.status].push(r)}});
+  Object.entries(funilGroups).forEach(([s,recs])=>{if(recs.length)alerts.push({id:'funil_'+s,icon:'🟡',label:`${recs.length} ${s.toLowerCase()} há +${recs[0].alert_days||10}d`,count:recs.length,ids:recs.map(r=>r.id)})});
+  const cartAlert=records.filter(r=>r.status==='Carteira'&&!r.enc);
+  if(cartAlert.length)alerts.push({id:'cart',icon:'🔵',label:`${cartAlert.length} carteira${cartAlert.length>1?'s':''} sem encomenda`,count:cartAlert.length,ids:cartAlert.map(r=>r.id)});
+  return alerts;
+}
 function negToMonth(r){if(!r.neg)return'';try{const d=new Date(r.neg);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`}catch{return''}}
 function getMonth(r){return S.statusFilter==='Fechados'?negToMonth(r):(r.mes1||'')}
 function esc(s){var x=String(s||'');x=x.replace(/&/g,'&amp;');x=x.replace(/</g,'&lt;');x=x.replace(/>/g,'&gt;');x=x.replace(/"/g,'&quot;');return x}
@@ -282,7 +298,21 @@ function renderLogin(){return`
 function renderList(){
   const f=filtered(),c=statusCounts(),months=availableMonths();
   const af=(S.monthFilter.length>0?1:0)+(S.bevFilter!=='all'?1:0)+(S.xevFilter!=='all'?1:0);
-  const curLabel=S.statusFilter==='all'?'Todos':S.statusFilter;
+  const curLabel=S.alertFilter?'⚠️ Alertas':S.statusFilter==='all'?'Todos':S.statusFilter;
+  const alerts=calcAlerts(S.records);
+  const alertTotal=alerts.reduce((a,x)=>a+x.count,0);
+  let alertsHtml='';
+  if(alerts.length){
+    alertsHtml='<div style="border-top:1px solid rgba(255,255,255,.08);margin:8px 0"></div>';
+    alertsHtml+='<div style="padding:8px 20px 4px;display:flex;align-items:center;justify-content:space-between">';
+    alertsHtml+='<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1px">Alertas</span>';
+    alertsHtml+='<span style="font-size:10px;font-weight:700;background:var(--orange);color:#fff;padding:2px 8px;border-radius:10px">'+alertTotal+'</span></div>';
+    alerts.forEach(function(a){
+      alertsHtml+='<div class="sidebar-item sidebar-alert '+(S.alertFilter===a.id?'active':'')+'" data-action="alert-filter" data-alert="'+a.id+'" data-ids="'+a.ids.join(',')+'">';
+      alertsHtml+='<span style="font-size:12px">'+a.icon+'</span>';
+      alertsHtml+='<span style="font-size:11px;line-height:1.3">'+a.label+'</span></div>';
+    });
+  }
   return`
   <div class="app-layout">
   <div class="m-overlay ${S.sidebarOpen?'show':''}" data-action="toggle-sidebar"></div>
@@ -326,6 +356,8 @@ function renderList(){
       <div class="sidebar-item ${S.statusFilter==='Fechados'?'active':''}" data-action="sidebar-filter" data-status="Fechados">
         <span class="sdot" style="background:#22c55e"></span>Negócios Fechados<span class="scount">${(c['Retail']||0)+(c['Carteira']||0)}</span>
       </div>
+      ${alertsHtml}
+    </div>
     </div>
     <div class="sidebar-close" data-action="toggle-sidebar">Fechar ✕</div>
     </div>
@@ -455,11 +487,12 @@ function renderEdit(){
       </div>
       ${S.openGroups[g.g]?`<div class="section-body">
         ${g.g==='Flags'?`<div class="toggles">${g.fields.map(fd=>`<button class="toggle-btn ${S.form[fd.k]?'on':''}" data-action="toggle-flag" data-field="${fd.k}">${S.form[fd.k]?'✓ ':''}${esc(fd.l)}</button>`).join('')}</div>`:`
-        ${g.fields.map(fd=>`<div class="field"><label class="field-label">${esc(fd.l)}</label>${
+        ${g.fields.filter(fd=>!fd.show||(fd.show==='funil'&&FUNIL.includes(S.form.status))).map(fd=>`<div class="field"><label class="field-label">${esc(fd.l)}${fd.show==='funil'?' (padrão: 10)':''}</label>${
           fd.t==='select'?`<select class="field-input" data-field="${fd.k}"><option value="">—</option>${(fd.o||[]).filter(Boolean).map(o=>`<option value="${esc(o)}" ${S.form[fd.k]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`:
           fd.t==='textarea'?`<textarea class="field-input" data-field="${fd.k}" rows="3">${esc(S.form[fd.k]||'')}</textarea>`:
           fd.t==='month'?`<input class="field-input" type="month" data-field="${fd.k}" data-fmt="month" value="${esc((S.form[fd.k]||'').replace('/','-'))}">`:
           fd.t==='date'?`<input class="field-input" type="date" data-field="${fd.k}" value="${esc(S.form[fd.k]||'')}">`:
+          fd.t==='number'?`<input class="field-input" type="number" data-field="${fd.k}" value="${esc(S.form[fd.k]||'')}" placeholder="10" min="1" max="365">`:
           `<input class="field-input" type="text" data-field="${fd.k}" value="${esc(S.form[fd.k]||'')}">`
         }</div>`).join('')}`}
       </div>`:''}
@@ -490,7 +523,8 @@ function bindEvents(){
       case'open-sidebar':setState({sidebarOpen:!S.sidebarOpen});break;
       case'toggle-sidebar':setState({sidebarOpen:!S.sidebarOpen});break;
       case'close-sidebar':setState({sidebarOpen:false});break;
-      case'sidebar-filter':setState({statusFilter:el.dataset.status,monthFilter:[],bevFilter:'all',xevFilter:'all'});break;
+      case'sidebar-filter':setState({statusFilter:el.dataset.status,monthFilter:[],bevFilter:'all',xevFilter:'all',alertFilter:null,alertIds:[]});break;
+      case'alert-filter':{const id=el.dataset.alert;const ids=el.dataset.ids.split(',').map(Number);if(S.alertFilter===id)setState({alertFilter:null,alertIds:[],statusFilter:'all'});else setState({alertFilter:id,alertIds:ids,statusFilter:'_alert'});break}
       case'filter':setState({statusFilter:el.dataset.status,monthFilter:[],bevFilter:'all',xevFilter:'all'});break;
       case'filter-month':{const m=el.dataset.month;const cur=[...S.monthFilter];const i=cur.indexOf(m);if(i>=0)cur.splice(i,1);else cur.push(m);setState({monthFilter:cur});break}
       case'filter-bev':setState({bevFilter:S.bevFilter==='1'?'all':'1'});break;
