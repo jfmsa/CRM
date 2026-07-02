@@ -250,7 +250,7 @@ function calcAlerts(records){
   const nowD=new Date();const nowYM=nowD.getFullYear()*12+nowD.getMonth();
   const cmeAlert=records.filter(r=>{
     if((!r.bev&&!r.xev)||r.cme||!r.mes1)return false;
-    const p=r.mes1.split('/').map(Number);if(p.length!==2)return false;
+    const p=r.mes1.split('/').map(Number);if(p.length!==2||p[0]<2025)return false;
     const targetYM=(p[0]*12)+(p[1]-1);const alertYM=targetYM-2;
     return nowYM>=alertYM;
   });
