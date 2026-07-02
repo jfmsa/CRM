@@ -261,7 +261,7 @@ function calcAlerts(records){
   if(cartAlert.length)alerts.push({id:'cart',icon:'🔵',label:`${cartAlert.length} carteira${cartAlert.length>1?'s':''} sem encomenda`,count:cartAlert.length,ids:cartAlert.map(r=>r.id)});
   const nowD=new Date();const nowYM=nowD.getFullYear()*12+nowD.getMonth();
   const cmeAlert=records.filter(r=>{
-    if((!r.bev&&!r.xev)||r.cme||!r.mes1)return false;
+    if(!r.bev||r.cme||!r.mes1)return false;
     const p=r.mes1.split('/').map(Number);if(p.length!==2||p[0]<2025)return false;
     const targetYM=(p[0]*12)+(p[1]-1);const alertYM=targetYM-2;
     return nowYM>=alertYM;
@@ -298,7 +298,7 @@ function renderCard(r){return`
         ${r.gar?`<span class="tag tag-gar">${esc(r.gar)}</span>`:''}
         ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
       </div>`:''}
-      ${(()=>{const acts=[];if(r.status==='Carteira'||r.status==='Matricula')acts.push(`<button class="card-act" data-action="copy-pedido" data-id="${r.id}" title="Copiar Pedido de Matrícula">📋 <span>Matrícula</span></button>`);if((r.bev||r.xev)&&!r.cme)acts.push(`<button class="card-act card-act-cme" data-action="confirm-cme" data-id="${r.id}" title="Confirmar CME">🟠 <span>CME</span></button>`);return acts.length?`<div class="card-acts">${acts.join('')}</div>`:''})()}
+      ${(()=>{const acts=[];if(r.status==='Carteira'||r.status==='Matricula')acts.push(`<button class="card-act" data-action="copy-pedido" data-id="${r.id}" title="Copiar Pedido de Matrícula">📋 <span>Matrícula</span></button>`);if(r.bev&&!r.cme)acts.push(`<button class="card-act card-act-cme" data-action="confirm-cme" data-id="${r.id}" title="Confirmar CME">🟠 <span>CME</span></button>`);return acts.length?`<div class="card-acts">${acts.join('')}</div>`:''})()}
     </div>
   </div>`}
 
