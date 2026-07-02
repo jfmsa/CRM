@@ -441,6 +441,7 @@ function renderList(){
       `).join(''):
       `<div class="cards">${f.map(r=>renderCard(r)).join('')}</div>`
     }
+    ${S.statusFilter==='Carteira'&&f.length>0?`<div style="padding:12px 16px 24px"><button class="btn btn-outline btn-block" data-action="share-carteira" style="border-color:var(--orange);color:var(--orange)">📤 Partilhar Carteira (${f.length})</button></div>`:''}
   </div>
   <button class="fab" data-action="open-add">+</button>
   </div></div>`}
@@ -570,6 +571,29 @@ function bindEvents(){
         }).then(()=>{setState({})}).catch(err=>{
           el.textContent='🟠 Confirmar CME';el.disabled=false;
           alert('Erro: '+err.message);
+        });
+        break;
+      }
+      case'share-carteira':{
+        const f=filtered();
+        const mLabel=S.monthFilter.length===1?S.monthFilter[0]:S.monthFilter.length>1?S.monthFilter.join(', '):'Todos os meses';
+        let txt='CARTEIRA - '+mLabel+' ('+f.length+' registos)\n\n';
+        f.forEach(function(r,i){
+          txt+=(i+1)+'. '+esc(r.id_cliente||'—')+'\n';
+          txt+='   Modelo: '+(r.model||'')+' '+(r.version||'')+'\n';
+          txt+='   Bizagi: '+(r.biz||'—')+'\n';
+          txt+='   Encomenda: '+(r.enc||'—')+'\n';
+          txt+='   Chassis: '+(r.chas||'—')+'\n';
+          txt+='   Financiamento: '+(r.fin||'—')+'\n';
+          txt+='   CME: '+(r.cme?'Sim':'Não')+'\n\n';
+        });
+        navigator.clipboard.writeText(txt).then(function(){
+          el.textContent='✓ Copiado!';el.style.background='var(--green)';el.style.color='#fff';el.style.borderColor='var(--green)';
+          setTimeout(function(){el.textContent='📤 Partilhar Carteira ('+f.length+')';el.style.background='';el.style.color='var(--orange)';el.style.borderColor='var(--orange)'},2000);
+        }).catch(function(){
+          var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+          el.textContent='✓ Copiado!';
+          setTimeout(function(){el.textContent='📤 Partilhar Carteira ('+f.length+')'},2000);
         });
         break;
       }
