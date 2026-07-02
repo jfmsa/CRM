@@ -249,7 +249,7 @@ function calcAlerts(records){
   if(cartAlert.length)alerts.push({id:'cart',icon:'🔵',label:`${cartAlert.length} carteira${cartAlert.length>1?'s':''} sem encomenda`,count:cartAlert.length,ids:cartAlert.map(r=>r.id)});
   const nowD=new Date();const nowYM=nowD.getFullYear()*12+nowD.getMonth();
   const cmeAlert=records.filter(r=>{
-    if(!r.cme||r.cme_confirmed||!r.mes1)return false;
+    if(!r.cme||r.cme_confirmed||!r.mes1||r.status==='Retail')return false;
     const p=r.mes1.split('/').map(Number);if(p.length!==2)return false;
     const targetYM=(p[0]*12)+(p[1]-1);const alertYM=targetYM-2;
     return nowYM>=alertYM;
@@ -287,7 +287,7 @@ function renderCard(r){return`
         ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
       </div>`:''}
       ${r.status==='Carteira'||r.status==='Matricula'?`<button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>`:''}
-      ${r.cme&&!r.cme_confirmed?`<button class="btn-copy" data-action="confirm-cme" data-id="${r.id}" style="border-color:var(--amber);color:var(--amber)">🟠 Confirmar CME</button>`:''}
+      ${r.cme&&!r.cme_confirmed&&r.status!=='Retail'?`<button class="btn-copy" data-action="confirm-cme" data-id="${r.id}" style="border-color:var(--amber);color:var(--amber)">🟠 Confirmar CME</button>`:''}
       ${r.cme&&r.cme_confirmed?`<div style="font-size:11px;color:var(--green);font-weight:600;text-align:center;padding:6px 0">✓ CME confirmado</div>`:''}
     </div>
   </div>`}
