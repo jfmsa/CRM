@@ -267,6 +267,12 @@ function calcAlerts(records){
     return nowYM>=alertYM;
   });
   if(cmeAlert.length)alerts.push({id:'cme',icon:'🟠',label:`${cmeAlert.length} CME a tratar (2 meses)`,count:cmeAlert.length,ids:cmeAlert.map(r=>r.id)});
+  const bizAlert=records.filter(r=>{
+    if(r.biz||!r.mes1)return false;
+    const p=r.mes1.split('/').map(Number);if(p.length!==2||p[0]<2026)return false;
+    return true;
+  });
+  if(bizAlert.length)alerts.push({id:'biz',icon:'🟣',label:`${bizAlert.length} sem Bizagi`,count:bizAlert.length,ids:bizAlert.map(r=>r.id)});
   return alerts;
 }
 function negToMonth(r){if(!r.neg)return'';try{const d=new Date(r.neg);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`}catch{return''}}
