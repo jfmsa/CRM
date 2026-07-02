@@ -50,6 +50,7 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .btn:active{transform:scale(.97)}
 .btn-orange{background:var(--orange);color:#fff}.btn-orange:active{background:var(--orange2)}
 .btn-outline{border:1.5px solid var(--border);color:var(--text);background:var(--surface)}
+.btn-dark{background:var(--text);color:#fff}.btn-dark:active{opacity:.85}
 .btn-danger{border:1.5px solid var(--red);color:var(--red);background:var(--surface)}
 .btn-ghost{color:var(--orange);font-weight:600}
 .btn-block{width:100%}
@@ -76,6 +77,10 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 
 /* Filter Panel */
 .fpanel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);margin:8px 16px 0;padding:16px}
+.fpanel-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;animation:fadeIn .15s ease}
+.fpanel-drawer{position:fixed;top:0;right:0;left:auto;bottom:0;width:100%;max-width:420px;margin:0;border-radius:0;z-index:61;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.15);animation:slideIn .2s ease;padding-top:calc(var(--safe-t) + 16px)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
 .fpanel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .fpanel-title{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
 .fpanel-clear{font-size:12px;color:var(--orange);font-weight:600;cursor:pointer}
@@ -94,8 +99,12 @@ select.field-input{padding-right:34px;background-image:url("data:image/svg+xml,%
 .fpanel-toggle.active{background:var(--orange-bg);color:var(--orange);border-color:var(--orange)}
 .fpanel-quick{padding:10px;border-radius:var(--r);border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text2);background:var(--surface);text-align:center;cursor:pointer}
 .fpanel-quick:active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.card-acts{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.card-act{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);background:var(--surface);cursor:pointer;transition:all .12s}
+.card-act:active{background:var(--surface2);border-color:var(--border2)}
+.card-act span{font-weight:600}
+.card-act.copied{background:var(--green);color:#fff;border-color:var(--green)}
 .btn-copy{margin-top:8px;width:100%;padding:8px;border-radius:var(--r);border:1.5px solid var(--orange);font-size:11px;font-weight:700;color:var(--orange);background:var(--surface);text-align:center;cursor:pointer;transition:all .15s}
-.btn-copy:active{background:var(--orange);color:#fff}
 .btn-copy.copied{background:var(--green);color:#fff;border-color:var(--green)}
 
 .cards{padding:6px 16px;display:flex;flex-direction:column;gap:6px}
@@ -210,12 +219,15 @@ let S={
   config:{url:'https://lvjwjznkhdgoyswfgsvm.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2andqem5raGRnb3lzd2Znc3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjU3MjEsImV4cCI6MjA5ODMwMTcyMX0.fdt3-_0d60TGqDuHvNZM2eUGKn-s6o6CsDI6KuJYAJE'},
   token:null,records:[],selected:null,form:{},
   search:'',statusFilter:'all',monthFilter:[],bevFilter:'all',xevFilter:'all',
-  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:true,filtersOpen:false,filterYear:null,alertFilter:null,alertIds:[]
+  openGroups:{Identificação:true},loading:false,error:'',confirmDelete:false,sidebarOpen:true,filtersOpen:false,filterYear:null,alertFilter:null,alertIds:[],renderLimit:50
 };
 function setState(u){Object.assign(S,u);render()}
 
-async function supabaseAuth(e,p){const r=await fetch(`${S.config.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{'apikey':S.config.key,'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});if(!r.ok)throw new Error('Login falhou. Verifica email e password.');return r.json()}
-async function supabaseApi(m,path,body){const h={'apikey':S.config.key,'Authorization':`Bearer ${S.token}`,'Content-Type':'application/json'};if(m==='POST'||m==='PATCH')h['Prefer']='return=representation';const o={method:m,headers:h};if(body)o.body=JSON.stringify(body);const r=await fetch(`${S.config.url}/rest/v1${path}`,o);if(!r.ok){const e=await r.text();throw new Error(e)}const t=await r.text();return t?JSON.parse(t):null}
+async function supabaseAuth(e,p){const r=await fetch(`${S.config.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{'apikey':S.config.key,'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});if(!r.ok)throw new Error('Login falhou. Verifica email e password.');const d=await r.json();saveSession(d);return d}
+function saveSession(d){try{if(d.access_token&&d.refresh_token){localStorage.setItem('bc_session',JSON.stringify({refresh_token:d.refresh_token}))}}catch(e){}}
+function clearSession(){try{localStorage.removeItem('bc_session')}catch(e){}}
+async function refreshSession(){let raw;try{raw=localStorage.getItem('bc_session')}catch(e){return null}if(!raw)return null;let s;try{s=JSON.parse(raw)}catch(e){return null}if(!s.refresh_token)return null;try{const r=await fetch(`${S.config.url}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{'apikey':S.config.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});if(!r.ok){clearSession();return null}const d=await r.json();saveSession(d);return d.access_token}catch(e){return null}}
+async function supabaseApi(m,path,body,_retry){const h={'apikey':S.config.key,'Authorization':`Bearer ${S.token}`,'Content-Type':'application/json'};if(m==='POST'||m==='PATCH')h['Prefer']='return=representation';const o={method:m,headers:h};if(body)o.body=JSON.stringify(body);const r=await fetch(`${S.config.url}/rest/v1${path}`,o);if(r.status===401&&!_retry){const nt=await refreshSession();if(nt){S.token=nt;return supabaseApi(m,path,body,true)}}if(!r.ok){const e=await r.text();throw new Error(e)}const t=await r.text();return t?JSON.parse(t):null}
 async function loadRecords(){setState({loading:true,error:''});try{const d=await supabaseApi('GET','/baviera_control?select=*&order=neg.desc.nullslast');setState({records:d,loading:false})}catch(e){setState({error:'Erro: '+e.message,loading:false})}}
 async function saveRecord(){setState({loading:true,error:''});try{const b={...S.form};['neg','dmat','col_298','app'].forEach(k=>{if(!b[k])b[k]=null});['qor','xev','bev','m_flag','csc','cme'].forEach(k=>{b[k]=b[k]?parseInt(b[k]):null});if(!b.alert_days)b.alert_days=null;else b.alert_days=parseInt(b.alert_days);delete b.id;delete b.created_at;if(S.selected){if(b.status!==S.selected.status)b.status_updated_at=new Date().toISOString();delete b.status_updated_at_keep;await supabaseApi('PATCH',`/baviera_control?id=eq.${S.selected.id}`,b)}else{b.status_updated_at=new Date().toISOString();await supabaseApi('POST','/baviera_control',b)}await loadRecords();setState({screen:'list',selected:null,loading:false})}catch(e){setState({error:'Erro ao guardar: '+e.message,loading:false})}}
 async function deleteRecord(){setState({loading:true,error:''});try{await supabaseApi('DELETE',`/baviera_control?id=eq.${S.selected.id}`);await loadRecords();setState({screen:'list',selected:null,confirmDelete:false,loading:false})}catch(e){setState({error:'Erro: '+e.message,loading:false})}}
@@ -286,8 +298,7 @@ function renderCard(r){return`
         ${r.gar?`<span class="tag tag-gar">${esc(r.gar)}</span>`:''}
         ${r.type?`<span class="tag tag-sm">${esc(r.type)}</span>`:''}
       </div>`:''}
-      ${r.status==='Carteira'||r.status==='Matricula'?`<button class="btn-copy" data-action="copy-pedido" data-id="${r.id}">📋 Pedido de Matrícula</button>`:''}
-      ${(r.bev||r.xev)&&!r.cme?`<button class="btn-copy" data-action="confirm-cme" data-id="${r.id}" style="border-color:var(--amber);color:var(--amber)">🟠 Confirmar CME</button>`:''}
+      ${(()=>{const acts=[];if(r.status==='Carteira'||r.status==='Matricula')acts.push(`<button class="card-act" data-action="copy-pedido" data-id="${r.id}" title="Copiar Pedido de Matrícula">📋 <span>Matrícula</span></button>`);if((r.bev||r.xev)&&!r.cme)acts.push(`<button class="card-act card-act-cme" data-action="confirm-cme" data-id="${r.id}" title="Confirmar CME">🟠 <span>CME</span></button>`);return acts.length?`<div class="card-acts">${acts.join('')}</div>`:''})()}
     </div>
   </div>`}
 
@@ -392,10 +403,10 @@ function renderList(){
       const selYear=S.filterYear||years[0]||'2026';
       const ym=monthsForYear(selYear);
       const allMonthKeys=MONTH_NAMES.map((_,i)=>`${selYear}/${String(i+1).padStart(2,'0')}`);
-      return`<div class="fpanel">
+      return`<div class="fpanel-backdrop" data-action="toggle-filters"></div><div class="fpanel fpanel-drawer">
         <div class="fpanel-header">
           <div class="fpanel-title">⏱ Período</div>
-          ${af?`<div class="fpanel-clear" data-action="clear-filters">Limpar</div>`:''}
+          <div style="display:flex;gap:12px;align-items:center">${af?`<div class="fpanel-clear" data-action="clear-filters">Limpar</div>`:''}<div class="fpanel-clear" data-action="toggle-filters" style="color:var(--text2)">Fechar ✕</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">
           <button class="fpanel-quick" data-action="quick-month">Mês atual</button>
@@ -438,9 +449,9 @@ function renderList(){
         </div>
         <div class="cards">${g.records.map(r=>renderCard(r)).join('')}</div>
       `).join(''):
-      `<div class="cards">${f.map(r=>renderCard(r)).join('')}</div>`
+      (()=>{const lim=S.renderLimit||50;const shown=f.slice(0,lim);let html=`<div class="cards">${shown.map(r=>renderCard(r)).join('')}</div>`;if(f.length>lim)html+=`<div style="padding:8px 16px 20px"><button class="btn btn-outline btn-block" data-action="load-more">Carregar mais (${f.length-lim} restantes)</button></div>`;return html})()
     }
-    ${S.statusFilter==='Carteira'&&f.length>0?`<div style="padding:12px 16px 24px"><button class="btn btn-outline btn-block" data-action="share-carteira" style="border-color:var(--orange);color:var(--orange)">📤 Partilhar Carteira (${f.length})</button></div>`:''}
+    ${S.statusFilter==='Carteira'&&f.length>0&&f.length<=(S.renderLimit||50)?`<div style="padding:12px 16px 24px"><button class="btn btn-dark btn-block" data-action="share-carteira">📤 Partilhar Carteira (${f.length})</button></div>`:''}
   </div>
   <button class="fab" data-action="open-add">+</button>
   </div></div>`}
@@ -473,7 +484,7 @@ function renderDetail(){
     </div>`).join('')}
     ${S.confirmDelete?`<div class="confirm-bar"><p>Apagar este registo?</p><button class="btn btn-sm" data-action="confirm-delete" ${S.loading?'disabled':''} style="background:var(--red);color:#fff">${S.loading?'…':'Sim'}</button><button class="btn btn-outline btn-sm" data-action="cancel-delete">Não</button></div>`:''}
     <div class="detail-actions">
-      <button class="btn btn-orange" data-action="open-edit" style="flex:1">Editar</button>
+      <button class="btn btn-dark" data-action="open-edit" style="flex:1">Editar</button>
       ${!S.confirmDelete?`<button class="btn btn-danger" data-action="ask-delete">Apagar</button>`:''}
     </div>
   </div>`}
@@ -527,12 +538,13 @@ function bindEvents(){
     const a=el.dataset.action;
     switch(a){
       case'login':{const em=document.getElementById('f-email')?.value?.trim(),pw=document.getElementById('f-pw')?.value;if(!em||!pw){setState({error:'Preenche email e password.'});return}setState({loading:true,error:''});supabaseAuth(em,pw).then(r=>{S.token=r.access_token;return loadRecords()}).then(()=>setState({screen:'list'})).catch(e=>setState({error:e.message,loading:false}));break}
-      case'logout':setState({token:null,records:[],screen:'login',error:''});break;
+      case'logout':clearSession();setState({token:null,records:[],screen:'login',error:''});break;
       case'refresh':loadRecords();break;
       case'open-sidebar':setState({sidebarOpen:!S.sidebarOpen});break;
       case'toggle-sidebar':setState({sidebarOpen:!S.sidebarOpen});break;
       case'close-sidebar':setState({sidebarOpen:false});break;
-      case'sidebar-filter':setState({statusFilter:el.dataset.status,monthFilter:[],bevFilter:'all',xevFilter:'all',alertFilter:null,alertIds:[]});break;
+      case'load-more':setState({renderLimit:(S.renderLimit||50)+50});break;
+      case'sidebar-filter':setState({statusFilter:el.dataset.status,monthFilter:[],bevFilter:'all',xevFilter:'all',alertFilter:null,alertIds:[],renderLimit:50});break;
       case'alert-filter':{const id=el.dataset.alert;const ids=el.dataset.ids.split(',').map(Number);if(S.alertFilter===id)setState({alertFilter:null,alertIds:[],statusFilter:'all'});else setState({alertFilter:id,alertIds:ids,statusFilter:'_alert'});break}
       case'filter':setState({statusFilter:el.dataset.status,monthFilter:[],bevFilter:'all',xevFilter:'all'});break;
       case'filter-month':{const m=el.dataset.month;const cur=[...S.monthFilter];const i=cur.indexOf(m);if(i>=0)cur.splice(i,1);else cur.push(m);setState({monthFilter:cur});break}
@@ -550,13 +562,10 @@ function bindEvents(){
         const r=S.records.find(x=>x.id===id);
         if(r){
           const txt=`Solicito pedido de matrícula desta viatura,\n• Modelo: ${r.model||''} ${r.version||''}\n• CLIENTE: ${r.id_cliente||''}\n• Encomenda: ${r.enc||''}\n• CHASSIS: ${r.chas||''}\n• Bizagi: ${r.biz||''}\nFINANCIAMENTO: ${r.fin||''}`;
-          navigator.clipboard.writeText(txt).then(()=>{
-            el.textContent='✓ Copiado!';el.classList.add('copied');
-            setTimeout(()=>{el.textContent='📋 Pedido de Matrícula';el.classList.remove('copied')},2000);
-          }).catch(()=>{
-            const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-            el.textContent='✓ Copiado!';el.classList.add('copied');
-            setTimeout(()=>{el.textContent='📋 Pedido de Matrícula';el.classList.remove('copied')},2000);
+          const orig=el.innerHTML;
+          const done=()=>{el.innerHTML='✓ <span>Copiado</span>';el.classList.add('copied');setTimeout(()=>{el.innerHTML=orig;el.classList.remove('copied')},1800)};
+          navigator.clipboard.writeText(txt).then(done).catch(()=>{
+            const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();
           });
         }
         break;
@@ -564,11 +573,12 @@ function bindEvents(){
       case'confirm-cme':{
         e.stopPropagation();
         const id=parseInt(el.dataset.id);
-        el.textContent='A confirmar...';el.disabled=true;
+        const orig=el.innerHTML;
+        el.innerHTML='⏳ <span>...</span>';el.disabled=true;
         supabaseApi('PATCH','/baviera_control?id=eq.'+id,{cme:1}).then(()=>{
           return loadRecords();
         }).then(()=>{setState({})}).catch(err=>{
-          el.textContent='🟠 Confirmar CME';el.disabled=false;
+          el.innerHTML=orig;el.disabled=false;
           alert('Erro: '+err.message);
         });
         break;
@@ -588,7 +598,7 @@ function bindEvents(){
         });
         navigator.clipboard.writeText(txt).then(function(){
           el.textContent='✓ Copiado!';el.style.background='var(--green)';el.style.color='#fff';el.style.borderColor='var(--green)';
-          setTimeout(function(){el.textContent='📤 Partilhar Carteira ('+f.length+')';el.style.background='';el.style.color='var(--orange)';el.style.borderColor='var(--orange)'},2000);
+          setTimeout(function(){el.textContent='📤 Partilhar Carteira ('+f.length+')';el.style.background='';el.style.color='';el.style.borderColor=''},2000);
         }).catch(function(){
           var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
           el.textContent='✓ Copiado!';
@@ -610,14 +620,20 @@ function bindEvents(){
     }
   };
   const si=document.getElementById('f-search');
-  if(si){si.oninput=function(){const p=this.selectionStart;S.search=this.value;render();const el=document.getElementById('f-search');if(el){el.focus();el.setSelectionRange(p,p)}}}
+  if(si){si.oninput=function(){S.search=this.value;S.renderLimit=50;if(window._sd)clearTimeout(window._sd);window._sd=setTimeout(function(){const p=document.getElementById('f-search')?document.getElementById('f-search').selectionStart:0;render();const el=document.getElementById('f-search');if(el){el.focus();el.setSelectionRange(p,p)}},250)}}
   const pw=document.getElementById('f-pw');
   if(pw)pw.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-action="login"]')?.click()}}
 }
 
 function collectFormData(){document.querySelectorAll('[data-field]').forEach(el=>{const k=el.dataset.field;let v=el.value;if(el.dataset.fmt==='month'&&v)v=v.replace('-','/');S.form[k]=v})}
 
-(function(){S.screen='login';render()})();
+(function(){
+  S.screen='loading';render();
+  refreshSession().then(function(token){
+    if(token){S.token=token;return loadRecords().then(function(){setState({screen:'list'})})}
+    else{setState({screen:'login'})}
+  }).catch(function(){setState({screen:'login'})});
+})();
 </script>
 </body>
 </html>
