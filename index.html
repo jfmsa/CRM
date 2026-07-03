@@ -631,7 +631,7 @@ function bindEvents(){
   if(pw)pw.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-action="login"]')?.click()}}
 }
 
-function collectFormData(){document.querySelectorAll('[data-field]').forEach(el=>{const k=el.dataset.field;let v=el.value;if(el.dataset.fmt==='month'&&v)v=v.replace('-','/');S.form[k]=v})}
+function collectFormData(){document.querySelectorAll('input[data-field],select[data-field],textarea[data-field]').forEach(el=>{const k=el.dataset.field;let v=el.value;if(el.dataset.fmt==='month'&&v)v=v.replace('-','/');S.form[k]=v})}
 
 (function(){
   S.screen='loading';render();
