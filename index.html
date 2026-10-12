@@ -42,7 +42,10 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html{height:100%;overflow:hidden}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;font-size:14px}
-#app{height:100%;overflow:hidden}
+#app{height:100%;overflow:hidden;display:flex;flex-direction:column}
+#app>.app-layout,#app>.content{flex:1 1 auto;min-height:0}
+.main-panel>.content,.content{min-height:0}
+#app>.hdr{flex-shrink:0}
 button{font:inherit;cursor:pointer;border:none;background:none}
 input,select,textarea{font:inherit;-webkit-appearance:none;appearance:none}
 
@@ -588,7 +591,8 @@ try{temaAplicar(temaAtual())}catch(e){}
 ICO.plate='<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h12"/>';
 function iniciais(n){return String(n||'?').trim().split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';}
 function meuEmail(){try{return JSON.parse(atob(S.token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email||''}catch(e){return''}}
-function meuNome(){return meuEmail().split('@')[0].replace(/[._-]+/g,' ')}
+const NOME_UTILIZADOR='Fernando Santos';
+function meuNome(){return NOME_UTILIZADOR||meuEmail().split('@')[0].replace(/[._-]+/g,' ')}
 // ---- Menu "Conta" (Tema · Password · Sair) ----
 function contaHTML(){
   const ab=!!S.contaAberto;const esc_=temaAtual()==='escuro';const nm=meuNome();
@@ -619,7 +623,7 @@ let _tgT=null;function toastGravado(m){clearTimeout(_tgT);_tgT=setTimeout(()=>{t
 
 // ===== Atualização automática (de hora a hora) + "em aberto" guardado na sessão =====
 // >>> MUDAR A CADA ENTREGA: senão a app não percebe que há versão nova <<<
-const APP_VERSION='nandini-2';
+const APP_VERSION='nandini-4';
 const AUTO_INTERVALO=60*60*1000;
 let _ultimaAtiv=Date.now(),_ultimoAuto=Date.now(),_novaVersao=null;
 ['keydown','pointerdown','input','wheel','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{_ultimaAtiv=Date.now();},{passive:true,capture:true}));
@@ -769,7 +773,7 @@ function calcAlerts(records){
   });
   if(cmeAlert.length)alerts.push({id:'cme',icon:'🟠',label:`${cmeAlert.length} CME a tratar (2 meses)`,count:cmeAlert.length,ids:cmeAlert.map(r=>r.id)});
   const bizAlert=records.filter(r=>{
-    if(r.status==='Perdido'||r.biz||!r.mes1)return false;
+    if(r.status==='Perdido'||FUNIL.includes(r.status)||r.biz||!r.mes1)return false;
     const p=r.mes1.split('/').map(Number);if(p.length!==2||p[0]<2026)return false;
     return true;
   });
@@ -781,7 +785,7 @@ function calcAlerts(records){
 const ALERTA_TAG={mat:['Matrícula','al'],cart:['Encomenda','mn'],cme:['CME','av'],biz:['Bizagi','md'],recont:['Re-contactar','av']};
 function alertaTag(id){const t=ALERTA_TAG[id]||(String(id).startsWith('funil_')?['Funil','av']:['Aviso','neu']);return`<span class="atag atag-${t[1]}">${t[0]}</span>`;}
 function curYM(){const d=new Date();return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`}
-function retailYM(r){if(!r.col_298)return null;const x=String(r.col_298);return x.slice(0,4)+'/'+x.slice(5,7);}
+function retailYM(r){return r.mes1||null;}
 function funilAtrasado(r){if(!r||!FUNIL.includes(r.status)||!r.status_updated_at)return false;return Math.floor((Date.now()-new Date(r.status_updated_at).getTime())/86400000)>=(r.alert_days||10);}
 function vDiasDesde(iso){if(!iso)return null;return Math.floor((Date.now()-new Date(iso).getTime())/864e5);}
 function vPendentes(){const al=calcAlerts(S.records);const tarefas=al.filter(a=>!String(a.id).startsWith('funil_'));const recont=recontLista().length;
@@ -791,7 +795,7 @@ function vHoje(){
   const nm=meuNome().split(' ')[0];const nomeP=nm?nm.charAt(0).toUpperCase()+nm.slice(1):'';
   const hojeTxt=new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'});
   const ret=recs.filter(r=>r.status==='Retail'&&retailYM(r)===ym);
-  const retN=ret.filter(r=>r.type!=='VP').length,retU=ret.length-retN;
+  const retVN=ret.filter(r=>r.type==='VN').length,retVD=ret.filter(r=>r.type==='VD').length;
   const cart=recs.filter(r=>r.status==='Carteira');const cartMes=cart.filter(r=>r.mes1&&r.mes1<=ym).length;
   const fun=recs.filter(r=>FUNIL.includes(r.status));
   const nQ=fun.filter(r=>r.status==='Quente').length,nM=fun.filter(r=>r.status==='Morno').length,nF=fun.filter(r=>r.status==='Frio').length;
@@ -812,7 +816,7 @@ function vHoje(){
   return`<div class="vh">
     <div class="vh-hello">Olá${nomeP?', '+esc(nomeP):''} <span>${esc(hojeTxt)}</span></div>
     <div class="vh-kpis">
-      ${kpi('Retail','Retail este mês',ret.length,`${retN} novas · ${retU} usadas`,'var(--green)')}
+      ${kpi('Retail','Retail este mês',ret.length,`${retVN} VN · ${retVD} VD`,'var(--green)')}
       ${kpi('Carteira','Carteira',cart.length,cartMes?`<b style="color:var(--amber)">${cartMes}</b> para entregar até este mês`:'nada para este mês','var(--blue)')}
       ${kpi('Funil','Funil',fun.length,`<span style="color:var(--red)">${nQ} quentes</span> · ${nM} mornos · ${nF} frios`)}
       ${kpi('Matricula','Matrícula',mats.length,matAtr?`<b style="color:var(--red)">${matAtr}</b> há +2 dias sem matrícula`:'nenhuma em atraso','var(--purple)')}
@@ -886,12 +890,13 @@ function renderLogin(){return`
 
 function renderList(){
   const c=statusCounts();
+  if(/:(novas|usadas)$/.test(String(S.statusFilter)))S.statusFilter=String(S.statusFilter).split(':')[0];
   const sfL=S.statusFilter;const grpL=vGrupoDe(sfL);
   // Filtro de período (ano → meses), igual em Funil, Carteira, Retail, Negócios fechados e Perdidos
   const PER_G={
     Funil:{base:r=>FUNIL.includes(r.status),mes:r=>r.mes1||null,def:'all',sem:'Sem mês',desc:false,dica:'Mês de referência (mes1)'},
     Carteira:{base:r=>r.status==='Carteira',mes:r=>r.mes1||null,def:'cart',sem:'Sem mês de entrega',desc:false,dica:'Mês de entrega (mes1)'},
-    Retail:{base:r=>r.status==='Retail',mes:r=>retailYM(r),def:'ult',sem:'Sem data 298',desc:true,dica:'Mês do retail (298)'},
+    Retail:{base:r=>r.status==='Retail',mes:r=>retailYM(r),def:'ult',sem:'Sem mês',desc:true,dica:'Mês de referência (mes1)'},
     Fechados:{base:r=>r.status==='Retail'||r.status==='Carteira',mes:r=>negToMonth(r)||null,def:'ult',sem:'Sem data de negócio',desc:true,dica:'Mês do negócio (data NEG)'},
     Perdido:{base:r=>r.status==='Perdido',mes:r=>r.status_updated_at?String(r.status_updated_at).slice(0,7).replace('-','/'):null,def:'all',sem:'Sem data',desc:true,dica:'Mês em que foi perdido'}};
   const PG=PER_G[grpL];
@@ -920,8 +925,8 @@ function renderList(){
     const nG=fn=>base.filter(r=>inM(r)&&fn(r)).length;
     const sub=grpL==='Funil'?[['Funil','Todos',nG(()=>true)],['Quente','Quente',nG(r=>r.status==='Quente')],['Morno','Morno',nG(r=>r.status==='Morno')],['Frio','Frio',nG(r=>r.status==='Frio')]]
       :grpL==='Perdido'?[['Perdido','Todos',nG(()=>true)],['Perdido:recont','A re-contactar',nG(recontDue)]]
-      :[[grpL,'Todas',nG(()=>true)],[grpL+':novas','Novas (VN+VD)',nG(r=>r.type!=='VP')],[grpL+':usadas','Usadas (VP)',nG(r=>r.type==='VP')]];
-    chips=`<div class="vchips">${sub.map(([k,l,n])=>`<button class="vchip ${sfL===k?'on':''}" data-action="set-sf" data-status="${k}">${l} <span>${n}</span></button>`).join('')}<span class="vchip-sep"></span><button class="vchip flag ${S.bevFilter==='1'?'on':''}" data-action="filter-bev">BEV</button><button class="vchip flag ${S.xevFilter==='1'?'on':''}" data-action="filter-xev">xEV</button></div>`;
+      :[];
+    chips=`<div class="vchips">${sub.map(([k,l,n])=>`<button class="vchip ${sfL===k?'on':''}" data-action="set-sf" data-status="${k}">${l} <span>${n}</span></button>`).join('')}${sub.length?'<span class="vchip-sep"></span>':''}<button class="vchip flag ${S.bevFilter==='1'?'on':''}" data-action="filter-bev">BEV</button><button class="vchip flag ${S.xevFilter==='1'?'on':''}" data-action="filter-xev">xEV</button></div>`;
   }
   const f=filtered().filter(inM);
   const mesUnico=mesMode&&/^\d{4}\/\d{2}$/.test(String(mesSel));
@@ -1090,7 +1095,7 @@ async function negComentar(id){const t=String(S.negCom||'').trim();if(!t)return;
   catch(e){alert('Erro ao gravar o comentário: '+((e&&e.message)||e));}}
 function negHistItem(h){const d=new Date(h.criado_em);const p=n=>String(n).padStart(2,'0');
   const quando=isNaN(d)?'':`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
-  const quem=esc(String(h.autor_email||'').split('@')[0].replace(/[._-]+/g,' ')||'Sistema');
+  const quem=esc((h.autor_email&&h.autor_email===meuEmail())?meuNome():(String(h.autor_email||'').split('@')[0].replace(/[._-]+/g,' ')||'Sistema'));
   const txt=h.tipo==='comentario'?`<span class="eoth-com">${esc(h.texto||'').replace(/\n/g,'<br>')}</span>`:((h.tipo==='criacao'||h.tipo==='remocao')?esc(h.texto||'criou o negócio'):
     `alterou <b>${esc(negCampoLb(h.campo))}</b>: ${esc(negValor(h.campo,h.valor_antes))} → <b>${esc(negValor(h.campo,h.valor_depois))}</b>`);
   return`<div class="eoth-it ${h.tipo==='comentario'?'comentario':(h.tipo==='alteracao'?'alteracao':'sistema')}"><div class="eoth-q">${esc(quando)}${h.tipo==='comentario'?' · comentário':''}</div><div class="eoth-t">${quem}: ${txt}</div></div>`;}
@@ -1152,7 +1157,7 @@ function renderEditRapido(){
     <div class="qf-chips">${['Quente','Morno','Frio','Carteira','Retail','Matricula'].map(v=>qfChip('status',v,v==='Matricula'?'Matrícula':v)).join('')}</div>
     <div class="qf-hint">${HINT[st]||'Quente / Morno / Frio = funil · Carteira = vendido por entregar · Retail = entregue · Matrícula = à espera de matrícula'}</div>
     <div class="qf-sec">Tipo</div>
-    <div class="qf-chips">${TYPES.map(t=>qfChip('type',t)).join('')}</div>
+    <div class="qf-chips">${['VN','VD'].map(t=>qfChip('type',t)).join('')}</div>
     <div class="qf-g">
       ${inp('id_cliente','Nome do cliente <i>*</i>','Ex: Ana Matos')}
       ${inp('model','Modelo','Ex: X3')}
