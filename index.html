@@ -623,7 +623,7 @@ let _tgT=null;function toastGravado(m){clearTimeout(_tgT);_tgT=setTimeout(()=>{t
 
 // ===== Atualização automática (de hora a hora) + "em aberto" guardado na sessão =====
 // >>> MUDAR A CADA ENTREGA: senão a app não percebe que há versão nova <<<
-const APP_VERSION='nandini-4';
+const APP_VERSION='nandini-5';
 const AUTO_INTERVALO=60*60*1000;
 let _ultimaAtiv=Date.now(),_ultimoAuto=Date.now(),_novaVersao=null;
 ['keydown','pointerdown','input','wheel','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{_ultimaAtiv=Date.now();},{passive:true,capture:true}));
@@ -890,6 +890,7 @@ function renderLogin(){return`
 
 function renderList(){
   const c=statusCounts();
+  if(S.statusFilter==='all')S.statusFilter='_hoje';
   if(/:(novas|usadas)$/.test(String(S.statusFilter)))S.statusFilter=String(S.statusFilter).split(':')[0];
   const sfL=S.statusFilter;const grpL=vGrupoDe(sfL);
   // Filtro de período (ano → meses), igual em Funil, Carteira, Retail, Negócios fechados e Perdidos
@@ -970,7 +971,6 @@ function renderList(){
     </div>
     <div class="sidebar-nav vnav">
       <div class="vnav-item ${emHoje?'on':''}" data-action="sidebar-filter" data-status="_hoje" role="button" tabindex="0"><span class="vnav-ic">${ico('home')}</span><span class="vnav-lb">Hoje</span>${P.total?`<span class="vnav-badge">${P.total}</span>`:''}</div>
-      ${nItem('all','inbox','Todos',S.records.length)}
       <div class="vnav-sec">Negócios</div>
       ${nItem('Funil','filter','Funil',(c['Quente']||0)+(c['Morno']||0)+(c['Frio']||0))}
       ${nItem('Quente','','Quente',c['Quente']||0,1,'#F87171')}
