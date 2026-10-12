@@ -488,6 +488,32 @@ a{color:var(--blue)}
 .nv-bar .ic{flex-shrink:0}
 @media(max-width:700px){.nv-bar{bottom:calc(var(--safe-b) + 76px);flex-wrap:wrap;width:calc(100vw - 24px)}}
 :root[data-theme="dark"] .nv-bar .btn-orange{color:#0B1220}
+/* ---------- Filtro de período: ano → meses ---------- */
+.per{padding:12px 16px 0;display:flex;flex-direction:column;gap:8px}
+.per-anos{display:flex;gap:6px;flex-wrap:wrap}
+.per-b{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:1px solid var(--border2);border-radius:var(--rp);background:var(--surface);font-size:13px;font-weight:700;color:var(--text)}
+.per-b span{font-weight:600;color:var(--text3);font-size:12px}
+.per-b.sel{border-color:var(--orange);color:var(--orange)}
+.per-b.on span,.per-m.on span{color:inherit;opacity:.8}
+.per-meses{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px}
+.per-m{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;border:1px solid var(--border2);border-radius:10px;background:var(--surface);font-size:13px;font-weight:800;color:var(--text)}
+.per-m span{font-size:11px;font-weight:600;color:var(--text3)}
+.per-m.cur{border-color:var(--orange)}
+.per-m.atras{color:var(--red)}
+.per-m:disabled{opacity:.35;cursor:default}
+@media(max-width:700px){.per-meses{grid-template-columns:repeat(6,minmax(0,1fr))}.per-m{min-height:48px;justify-content:center}.per-b{min-height:44px;padding:0 11px;flex-shrink:0}.per-anos{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.per-anos::-webkit-scrollbar{display:none}}
+/* ---------- Logótipo com foto + conta no fundo do menu ---------- */
+.sidebar-logo-icon.foto{background:none;padding:0;overflow:hidden}
+.sidebar-logo-icon.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.vnav-foot{flex-direction:column!important;align-items:stretch!important;gap:10px}
+.vnav-fbs{display:flex;gap:6px}
+.vnav-fb{display:inline-flex!important;align-items:center;justify-content:center;gap:6px;min-height:40px;flex:0 0 44px}
+.vnav-fb.vnav-sair{flex:1}
+.vnav-fb .ic{width:18px;height:18px}
+.sidebar-nav{min-height:0}
+.vnav-foot{flex-shrink:0}
+.vnav-close{display:none!important}
+@media(max-width:700px){.vnav-close{display:inline-flex!important}.vnav-fb{min-height:44px}}
 </style>
 </head>
 <body>
@@ -593,7 +619,7 @@ let _tgT=null;function toastGravado(m){clearTimeout(_tgT);_tgT=setTimeout(()=>{t
 
 // ===== Atualização automática (de hora a hora) + "em aberto" guardado na sessão =====
 // >>> MUDAR A CADA ENTREGA: senão a app não percebe que há versão nova <<<
-const APP_VERSION='nandini-1';
+const APP_VERSION='nandini-2';
 const AUTO_INTERVALO=60*60*1000;
 let _ultimaAtiv=Date.now(),_ultimoAuto=Date.now(),_novaVersao=null;
 ['keydown','pointerdown','input','wheel','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{_ultimaAtiv=Date.now();},{passive:true,capture:true}));
@@ -861,38 +887,58 @@ function renderLogin(){return`
 function renderList(){
   const c=statusCounts();
   const sfL=S.statusFilter;const grpL=vGrupoDe(sfL);
-  // Carteira e Retail: o filtro principal é o MÊS (Carteira pelo mes1, Retail pela data 298); o secundário é Novas/Usadas
-  const mesMode=(grpL==='Carteira'||grpL==='Retail')&&!S.alertFilter;
-  const mesDe=grpL==='Retail'?(r=>retailYM(r)):(r=>r.mes1||null);
+  // Filtro de período (ano → meses), igual em Funil, Carteira, Retail, Negócios fechados e Perdidos
+  const PER_G={
+    Funil:{base:r=>FUNIL.includes(r.status),mes:r=>r.mes1||null,def:'all',sem:'Sem mês',desc:false,dica:'Mês de referência (mes1)'},
+    Carteira:{base:r=>r.status==='Carteira',mes:r=>r.mes1||null,def:'cart',sem:'Sem mês de entrega',desc:false,dica:'Mês de entrega (mes1)'},
+    Retail:{base:r=>r.status==='Retail',mes:r=>retailYM(r),def:'ult',sem:'Sem data 298',desc:true,dica:'Mês do retail (298)'},
+    Fechados:{base:r=>r.status==='Retail'||r.status==='Carteira',mes:r=>negToMonth(r)||null,def:'ult',sem:'Sem data de negócio',desc:true,dica:'Mês do negócio (data NEG)'},
+    Perdido:{base:r=>r.status==='Perdido',mes:r=>r.status_updated_at?String(r.status_updated_at).slice(0,7).replace('-','/'):null,def:'all',sem:'Sem data',desc:true,dica:'Mês em que foi perdido'}};
+  const PG=PER_G[grpL];
+  const mesMode=!!PG&&!S.alertFilter;
+  const mesDe=PG?PG.mes:(()=>null);
   let mesSel=null,mesBar='',chips='';
+  const inM=r=>{if(!mesMode||mesSel==='all')return true;const m=mesDe(r);if(mesSel==='sem')return !m;if(mesSel.length===4)return String(m||'').startsWith(mesSel+'/');return m===mesSel;};
   if(mesMode){
-    const base=S.records.filter(r=>r.status===grpL);
+    const base=S.records.filter(PG.base);
     const ms=[...new Set(base.map(mesDe).filter(Boolean))].sort();
+    const anos=[...new Set(ms.map(m=>m.slice(0,4)))].sort();
+    const semN=base.filter(r=>!mesDe(r)).length;
     const cur=curYM();
-    const def=ms.includes(cur)?cur:(grpL==='Carteira'?(ms.find(m=>m>=cur)||ms[ms.length-1]):ms[ms.length-1]);
-    mesSel=(S.vMesSel||{})[grpL];if(mesSel!=='all'&&!ms.includes(mesSel))mesSel=def||'all';
-    const ordem=grpL==='Retail'?ms.slice().reverse():ms;
-    const cnt=m=>base.filter(r=>mesDe(r)===m).length;
-    mesBar=`<div class="vmeses">${ordem.map(m=>`<button class="vmes ${m===mesSel?'on':''} ${m===cur?'cur':''} ${grpL==='Carteira'&&m<cur?'atras':''}" data-action="v-mes-sel" data-g="${grpL}" data-m="${m}" title="${grpL==='Carteira'?'Mês de entrega (mes1)':'Mês do retail (298)'}">${ymCurto(m)}<span>${cnt(m)}</span></button>`).join('')}<button class="vmes ${mesSel==='all'?'on':''}" data-action="v-mes-sel" data-g="${grpL}" data-m="all">Todos<span>${base.length}</span></button></div>`;
-    const inM=r=>mesSel==='all'||mesDe(r)===mesSel;
+    const def=(PG.def==='all'||!ms.length)?'all':(ms.includes(cur)?cur:(PG.def==='cart'?(ms.find(m=>m>=cur)||ms[ms.length-1]):ms[ms.length-1]));
+    mesSel=(S.vMesSel||{})[grpL];
+    if(!(mesSel==='all'||(mesSel==='sem'&&semN)||ms.includes(mesSel)||anos.includes(mesSel)))mesSel=def;
+    let ano=/^\d{4}/.test(String(mesSel))?String(mesSel).slice(0,4):(S.vAnoSel||{})[grpL];
+    if(!anos.includes(ano))ano=anos.includes(cur.slice(0,4))?cur.slice(0,4):anos[anos.length-1];
+    const cntM=m=>base.filter(r=>mesDe(r)===m).length;
+    const cntA=y=>base.filter(r=>String(mesDe(r)||'').startsWith(y+'/')).length;
+    const pb=(m,lb,n,cls)=>`<button class="per-b ${cls||''}" data-action="v-mes-sel" data-g="${grpL}" data-m="${m}">${lb} <span>${n}</span></button>`;
+    mesBar=`<div class="per" title="${PG.dica}">
+      <div class="per-anos">${pb('all','Todos',base.length,mesSel==='all'?'on':'')}${anos.map(y=>pb(y,y,cntA(y),mesSel===y?'on':(ano===y&&mesSel!=='sem'?'sel':''))).join('')}${semN?pb('sem',PG.sem,semN,mesSel==='sem'?'on':''):''}</div>
+      ${ano?`<div class="per-meses">${MONTH_NAMES.map((nm,i)=>{const k=ano+'/'+String(i+1).padStart(2,'0');const n=cntM(k);return`<button class="per-m ${k===mesSel?'on':''} ${k===cur?'cur':''} ${grpL==='Carteira'&&k<cur&&n?'atras':''}" data-action="v-mes-sel" data-g="${grpL}" data-m="${k}" ${n?'':'disabled'} aria-label="${nm} ${ano}: ${n}">${nm}<span>${n}</span></button>`;}).join('')}</div>`:''}
+    </div>`;
     const nG=fn=>base.filter(r=>inM(r)&&fn(r)).length;
-    chips=`<div class="vchips">${[[grpL,'Todas',nG(()=>true)],[grpL+':novas','Novas (VN+VD)',nG(r=>r.type!=='VP')],[grpL+':usadas','Usadas (VP)',nG(r=>r.type==='VP')]].map(([k,l,n])=>`<button class="vchip ${sfL===k?'on':''}" data-action="set-sf" data-status="${k}">${l} <span>${n}</span></button>`).join('')}<span class="vchip-sep"></span><button class="vchip flag ${S.bevFilter==='1'?'on':''}" data-action="filter-bev">BEV</button><button class="vchip flag ${S.xevFilter==='1'?'on':''}" data-action="filter-xev">xEV</button></div>`;
+    const sub=grpL==='Funil'?[['Funil','Todos',nG(()=>true)],['Quente','Quente',nG(r=>r.status==='Quente')],['Morno','Morno',nG(r=>r.status==='Morno')],['Frio','Frio',nG(r=>r.status==='Frio')]]
+      :grpL==='Perdido'?[['Perdido','Todos',nG(()=>true)],['Perdido:recont','A re-contactar',nG(recontDue)]]
+      :[[grpL,'Todas',nG(()=>true)],[grpL+':novas','Novas (VN+VD)',nG(r=>r.type!=='VP')],[grpL+':usadas','Usadas (VP)',nG(r=>r.type==='VP')]];
+    chips=`<div class="vchips">${sub.map(([k,l,n])=>`<button class="vchip ${sfL===k?'on':''}" data-action="set-sf" data-status="${k}">${l} <span>${n}</span></button>`).join('')}<span class="vchip-sep"></span><button class="vchip flag ${S.bevFilter==='1'?'on':''}" data-action="filter-bev">BEV</button><button class="vchip flag ${S.xevFilter==='1'?'on':''}" data-action="filter-xev">xEV</button></div>`;
   }
-  if(grpL==='Perdido'&&!S.alertFilter){chips=`<div class="vchips">${[['Perdido','Todos',c['Perdido']||0],['Perdido:recont','A re-contactar',recontLista().length]].map(([k,l,n])=>`<button class="vchip ${sfL===k?'on':''}" data-action="set-sf" data-status="${k}">${l} <span>${n}</span></button>`).join('')}</div>`;}
-  const f=filtered().filter(r=>!mesMode||mesSel==='all'||mesDe(r)===mesSel);
-  if(mesMode&&mesSel!=='all')f.sort(grpL==='Retail'?((a,b)=>String(b.col_298||'').localeCompare(String(a.col_298||''))):((a,b)=>String(a.id_cliente||'').localeCompare(String(b.id_cliente||''),'pt')));
-  const grupos=(mesMode&&mesSel==='all')?(()=>{const m={};f.forEach(r=>{const k=mesDe(r)||'Sem mês';(m[k]=m[k]||[]).push(r);});return Object.keys(m).sort((a,b)=>grpL==='Retail'?b.localeCompare(a):a.localeCompare(b)).map(k=>({month:k==='Sem mês'?(grpL==='Retail'?'Sem data 298':'Sem mês de entrega'):k,records:m[k]}));})():null;
+  const f=filtered().filter(inM);
+  const mesUnico=mesMode&&/^\d{4}\/\d{2}$/.test(String(mesSel));
+  if(mesUnico)f.sort(grpL==='Retail'?((a,b)=>String(b.col_298||'').localeCompare(String(a.col_298||''))):((a,b)=>String(a.id_cliente||'').localeCompare(String(b.id_cliente||''),'pt')));
+  const grupos=(mesMode&&!mesUnico&&mesSel!=='sem')?(()=>{const m={};f.forEach(r=>{const k=mesDe(r)||'~';(m[k]=m[k]||[]).push(r);});return Object.keys(m).sort((x,y)=>x==='~'?1:y==='~'?-1:(PG.desc?y.localeCompare(x):x.localeCompare(y))).map(k=>({month:k==='~'?PG.sem:k,records:m[k]}));})():null;
   if(sfL==='Perdido:recont')f.sort((a,b)=>String(recontData(a)).localeCompare(String(recontData(b))));
-  S._lista=f;S._listaMes=mesMode?(mesSel==='all'?'Todos os meses':ymCurto(mesSel)):null;
+  const perLbl=!mesMode?'':mesSel==='all'?'':mesSel==='sem'?PG.sem:(mesUnico?ymCurto(mesSel):mesSel);
+  S._lista=f;S._listaMes=mesMode?(perLbl||'Todos os meses'):null;
   const af=(S.monthFilter.length>0?1:0)+(S.bevFilter!=='all'?1:0)+(S.xevFilter!=='all'?1:0);
   const alerts=calcAlerts(S.records);
   const alertTotal=alerts.reduce((a,x)=>a+x.count,0);
   const alAtual=S.alertFilter?(alerts.find(x=>x.id===S.alertFilter)||{}).label:null;
   const emHoje=S.statusFilter==='_hoje'&&!S.alertFilter;const procura=emHoje&&String(S.search||'').trim();const P=vPendentes();
-  const curLabel=S.alertFilter?(alAtual||'Alerta'):emHoje?(procura?'Procurar':'Hoje'):S.statusFilter==='all'?'Todos':S.statusFilter==='Fechados'?'Negócios fechados':S.statusFilter==='Matricula'?'Matrícula':(({'Carteira:novas':'Carteira · Novas','Carteira:usadas':'Carteira · Usadas','Retail:novas':'Retail · Novas','Retail:usadas':'Retail · Usadas','Perdido':'Perdidos','Perdido:recont':'Perdidos · A re-contactar'})[S.statusFilter]||S.statusFilter)+(mesMode&&mesSel&&mesSel!=='all'?' · '+ymCurto(mesSel):'');
+  const curLabel=S.alertFilter?(alAtual||'Alerta'):emHoje?(procura?'Procurar':'Hoje'):S.statusFilter==='all'?'Todos':S.statusFilter==='Matricula'?'Matrícula':(({'Fechados':'Negócios fechados','Fechados:novas':'Negócios fechados · Novas','Fechados:usadas':'Negócios fechados · Usadas','Quente':'Funil · Quente','Morno':'Funil · Morno','Frio':'Funil · Frio','Carteira:novas':'Carteira · Novas','Carteira:usadas':'Carteira · Usadas','Retail:novas':'Retail · Novas','Retail:usadas':'Retail · Usadas','Perdido':'Perdidos','Perdido:recont':'Perdidos · A re-contactar'})[S.statusFilter]||S.statusFilter)+(perLbl?' · '+perLbl:'');
   const grp=S.alertFilter?'_hoje':grpL;
   const AL_COR={mat:'#F87171',cart:'#60A5FA',cme:'#FB923C',biz:'#C084FC'};
-  const nItem=(st,ic,lb,n,sub,dot)=>`<div class="vnav-item ${sub?'vnav-sub':''} ${!S.alertFilter&&(S.statusFilter===st||(['Carteira','Retail','Perdido'].includes(st)&&grpL===st))?'on':''}" data-action="sidebar-filter" data-status="${st}" role="button" tabindex="0"><span class="vnav-ic">${dot?`<span class="vnav-dot" style="background:${dot}"></span>`:ico(ic)}</span><span class="vnav-lb">${lb}</span><span class="vnav-n">${n}</span></div>`;
+  const nItem=(st,ic,lb,n,sub,dot)=>`<div class="vnav-item ${sub?'vnav-sub':''} ${!S.alertFilter&&(S.statusFilter===st||(['Carteira','Retail','Perdido','Fechados'].includes(st)&&grpL===st))?'on':''}" data-action="sidebar-filter" data-status="${st}" role="button" tabindex="0"><span class="vnav-ic">${dot?`<span class="vnav-dot" style="background:${dot}"></span>`:ico(ic)}</span><span class="vnav-lb">${lb}</span><span class="vnav-n">${n}</span></div>`;
   let alertsHtml='';
   if(alerts.length){
     alertsHtml='<div class="vnav-sec-row"><div class="vnav-sec">Alertas</div><span class="vnav-badge">'+alertTotal+'</span></div>';
@@ -912,7 +958,7 @@ function renderList(){
     <div class="sidebar-inner">
     <div class="sidebar-header">
       <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">B</div>
+        <div class="sidebar-logo-icon foto"><img src="data:image/jpeg;base64,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" alt=""></div>
         <div><div class="sidebar-logo-text">Baviera Control</div>
         <div class="sidebar-logo-sub">Pipeline de vendas</div></div>
       </div>
@@ -931,11 +977,15 @@ function renderList(){
       ${nItem('Perdido','xcircle','Perdidos',c['Perdido']||0)}
       <div class="vnav-sec">Fechados</div>
       ${nItem('Fechados','trophy','Negócios fechados',(c['Retail']||0)+(c['Carteira']||0))}
-      ${alertsHtml}
     </div>
     <div class="vnav-foot">
       <div class="vnav-quem"><span class="conta-av">${esc(iniciais(nm))}</span><span>${esc(nm)}</span></div>
-      <button class="vnav-fb vnav-close" data-action="toggle-sidebar" title="Fechar menu" aria-label="Fechar menu">${ico('x')}</button>
+      <div class="vnav-fbs">
+        <button class="vnav-fb" data-action="tema-toggle" title="${temaAtual()==='escuro'?'Tema claro':'Tema escuro'}" aria-label="${temaAtual()==='escuro'?'Tema claro':'Tema escuro'}">${ico(temaAtual()==='escuro'?'sun':'moon')}</button>
+        <button class="vnav-fb" data-action="go-password" title="Alterar password" aria-label="Alterar password">${ico('key')}</button>
+        <button class="vnav-fb vnav-sair" data-action="logout" title="Sair">${ico('logout')}<span>Sair</span></button>
+        <button class="vnav-fb vnav-close" data-action="toggle-sidebar" title="Fechar menu" aria-label="Fechar menu">${ico('x')}</button>
+      </div>
     </div>
     </div>
   </div>
@@ -947,7 +997,6 @@ function renderList(){
     ${emHoje&&!procura?'':`<div class="hdr-sub${S.alertFilter?' em-alerta':''}">${f.length}${emHoje?' encontrados':' de '+S.records.length}</div>`}
     ${S.alertFilter?`<button class="hdr-btn" data-action="sidebar-filter" data-status="_hoje" aria-label="Fechar alerta">${ico('x','ic-sm')}<span class="hdr-fecha">Fechar alerta</span></button>`:''}
     <button class="hdr-btn hdr-ic" data-action="refresh" ${S.loading?'disabled':''} aria-label="Atualizar" title="Atualizar">${S.loading?'…':ico('refresh')}</button>
-    ${contaHTML()}
   </div>
   <div class="content">
     <div class="search-wrap"><input class="search-input" id="f-search" placeholder="${emHoje?'Procurar em todos os negócios…':'Pesquisar cliente, modelo, matrícula...'}" value="${esc(S.search)}"></div>
@@ -1290,7 +1339,7 @@ function bindEvents(){
       case'open-add':S.formCompleto=false;setState({selected:null,form:emptyForm(),screen:'edit',error:'',openGroups:{Identificação:true}});break;
       case'qf-set':{collectFormData();const k=el.dataset.k,v=el.dataset.v;S.form[k]=(S.form[k]===v&&k==='type')?'':v;if(k==='status'&&['Carteira','Retail','Matricula'].includes(v)&&!S.form.neg)S.form.neg=new Date().toISOString().slice(0,10);S.error='';render();break;}
       case'qf-completo':collectFormData();S.formCompleto=true;setState({openGroups:{'Identificação':true,'Negócio':true,'Viatura':true,'Datas & Estado':true}});break;
-      case'v-mes-sel':setState({vMesSel:Object.assign({},S.vMesSel||{},{[el.dataset.g]:el.dataset.m}),renderLimit:50});break;
+      case'v-mes-sel':{const g=el.dataset.g,m=el.dataset.m;const up={vMesSel:Object.assign({},S.vMesSel||{},{[g]:m}),renderLimit:50};if(/^\d{4}/.test(m))up.vAnoSel=Object.assign({},S.vAnoSel||{},{[g]:m.slice(0,4)});setState(up);break;}
       case'recont-reabrir':e.stopPropagation();recontReabrir(el.dataset.id);break;
       case'recont-adiar':e.stopPropagation();recontAdiar(el.dataset.id);break;
       case'neg-comentar':negComentar(el.dataset.id);break;
